@@ -1,6 +1,6 @@
 // Service worker: cachea el shell de la app para que funcione sin conexión en campo.
 // Los datos (proveedores, checklists, fotos, etc.) viven en IndexedDB, no aquí.
-const CACHE_NAME = "hub-agricola-v1";
+const CACHE_NAME = "hub-agricola-v2";
 const SHELL_FILES = [
   "./",
   "./index.html",
@@ -41,6 +41,8 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
   // Nunca cachear llamadas a Microsoft Graph / login — deben ir siempre a la red.
   if (url.hostname.includes("graph.microsoft.com") || url.hostname.includes("login.microsoftonline.com")) return;
+  // Ignora peticiones que no sean http(s) (ej. chrome-extension://) — la Cache API las rechaza.
+  if (url.protocol !== "http:" && url.protocol !== "https:") return;
 
   event.respondWith(
     caches.match(event.request).then(
