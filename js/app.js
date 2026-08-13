@@ -1,6 +1,7 @@
 import { el, clear } from "./dom.js";
 import { CONFIG } from "./config.js";
 import * as store from "./store.js";
+import { initAuth, login } from "./auth.js";
 import { renderChecklistHome } from "./checklist.js";
 import { renderSeguimientoHome } from "./seguimiento.js";
 import { renderRutaHome } from "./ruta.js";
@@ -96,8 +97,23 @@ window.addEventListener("offline", updateSyncIndicator);
 
 // ---- Arranque ----
 (async function bootstrap() {
-  document.getElementById("user-chip").textContent = CONFIG.useMock ? "Modo demo" : "Conectando…";
   updateSyncIndicator();
+
+  if (CONFIG.useMock) {
+    document.getElementById("user-chip").textContent = "Modo demo";
+  } else {
+    document.getElementById("user-chip").textContent = "Conectando…";
+    const account = await initAuth();
+    if (!account) {
+      // No hay sesión — manda a la pantalla de inicio de sesión de Microsoft.
+      // Al volver, handleRedirectPromise() (dentro de initAuth) resuelve la
+      // cuenta y este mismo arranque continúa normalmente.
+      await login();
+      return;
+    }
+    document.getElementById("user-chip").textContent = account.name || account.username || "Conectado";
+  }
+
   await store.initStore();
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("sw.js").catch(() => {});
