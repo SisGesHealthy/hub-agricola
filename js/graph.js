@@ -160,7 +160,9 @@ export async function graphUpdateItemById(listKey, itemId, fields) {
 // cargó el registro completo primero).
 export async function graphUpdateItemByAppId(listKey, appId, fields) {
   const qs = new URLSearchParams({ expand: "fields", $select: "id", $filter: `fields/Title eq '${appId}'` });
-  const found = await graphFetch(`${listPath(listKey)}/items?${qs.toString()}`);
+  const found = await graphFetch(`${listPath(listKey)}/items?${qs.toString()}`, {
+    headers: { Prefer: "HonorNonIndexedQueriesWarningMayFailRandomly" },
+  });
   const itemId = found.value && found.value[0] && found.value[0].id;
   if (!itemId) throw new Error(`No se encontró en "${listKey}" el registro con id "${appId}" para actualizar.`);
   return graphUpdateItemById(listKey, itemId, { ...fields, id: appId });
