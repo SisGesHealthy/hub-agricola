@@ -337,7 +337,8 @@ export async function saveSeguimiento(fields) {
     await idb.put("seguimientos", rec);
   } else {
     const graphRec = await resolvePhotoFields(rec, ["photoIds"]);
-    if (fields.id) await graph.graphUpdateItemByAppId("seguimientoSemanal", fields.id, toGraphFields(graphRec));
+    if (rec._itemId) await graph.graphUpdateItemById("seguimientoSemanal", rec._itemId, toGraphFields(graphRec));
+    else if (fields.id) await graph.graphUpdateItemByAppId("seguimientoSemanal", fields.id, toGraphFields(graphRec));
     else await graph.graphCreateItem("seguimientoSemanal", toGraphFields(graphRec));
   }
   return rec;
@@ -370,7 +371,8 @@ export async function saveRuta(fields) {
     await idb.put("rutas", rec);
   } else {
     const graphRec = await resolvePhotoFields(rec, ["photoId"]);
-    if (fields.id) await graph.graphUpdateItemByAppId("rutaVisitas", fields.id, toGraphFields(graphRec));
+    if (rec._itemId) await graph.graphUpdateItemById("rutaVisitas", rec._itemId, toGraphFields(graphRec));
+    else if (fields.id) await graph.graphUpdateItemByAppId("rutaVisitas", fields.id, toGraphFields(graphRec));
     else await graph.graphCreateItem("rutaVisitas", toGraphFields(graphRec));
   }
   return rec;
@@ -430,7 +432,8 @@ export async function addGastoLinea(gastoId, fields) {
     await idb.put("gastosDet", rec);
   } else {
     const graphRec = await resolvePhotoFields(rec, ["photoId"]);
-    if (fields.id) await graph.graphUpdateItemByAppId("gastosDetalle", fields.id, toGraphFields(graphRec));
+    if (rec._itemId) await graph.graphUpdateItemById("gastosDetalle", rec._itemId, toGraphFields(graphRec));
+    else if (fields.id) await graph.graphUpdateItemByAppId("gastosDetalle", fields.id, toGraphFields(graphRec));
     else await graph.graphCreateItem("gastosDetalle", toGraphFields(graphRec));
   }
   return rec;
