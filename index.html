@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#1F4E3D" />
+<title>Hub Agrícola · Healthy Food</title>
+<link rel="manifest" href="manifest.json" />
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
+<link rel="apple-touch-icon" href="icons/icon-192.png" />
+<link rel="stylesheet" href="vendor/leaflet/leaflet.css" />
+<link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+
+<div id="offline-banner" class="offline-banner hidden">Sin conexión — los cambios se guardan en el celular y se sincronizan al recuperar señal.</div>
+
+<header class="topbar">
+  <div class="topbar-title">
+    <img src="icons/icon.svg" class="topbar-logo" alt="" />
+    <span>Hub Agrícola</span>
+  </div>
+  <div class="topbar-status">
+    <span id="sync-indicator" class="sync-indicator" title="Estado de sincronización"></span>
+    <span id="user-chip" class="user-chip">Modo demo</span>
+  </div>
+</header>
+
+<main id="view-root" class="view-root"></main>
+
+<nav class="bottom-nav">
+  <button class="nav-btn" data-route="inicio">
+    <svg viewBox="0 0 24 24"><path d="M12 3l9 8h-3v9h-5v-6H11v6H6v-9H3z"/></svg>
+    <span>Inicio</span>
+  </button>
+  <button class="nav-btn" data-route="checklist">
+    <svg viewBox="0 0 24 24"><path d="M9 11l3 3 7-7M4 5h11v2H4zM4 11h6v2H4zM4 17h6v2H4z"/></svg>
+    <span>Check List</span>
+  </button>
+  <button class="nav-btn" data-route="seguimiento">
+    <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zm1 5v5.4l4 2.3-.8 1.3L11 13V7z"/></svg>
+    <span>Seguimiento</span>
+  </button>
+  <button class="nav-btn" data-route="ruta">
+    <svg viewBox="0 0 24 24"><path d="M12 2a7 7 0 00-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 00-7-7zm0 9.5A2.5 2.5 0 1112 6.5a2.5 2.5 0 010 5z"/></svg>
+    <span>Ruta</span>
+  </button>
+  <button class="nav-btn" data-route="gastos">
+    <svg viewBox="0 0 24 24"><path d="M4 4h16v4H4zM4 10h16v10H4zm3 2v2h10v-2z"/></svg>
+    <span>Gastos</span>
+  </button>
+</nav>
+
+<div id="modal-root"></div>
+<div id="toast-root" class="toast-root"></div>
+
+<script src="vendor/jspdf.umd.min.js"></script>
+<script src="vendor/jspdf.plugin.autotable.min.js"></script>
+<script src="vendor/msal-browser.min.js"></script>
+<script src="vendor/leaflet/leaflet.js"></script>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
