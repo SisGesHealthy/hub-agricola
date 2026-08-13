@@ -130,6 +130,11 @@ export async function getPhotoUrl(photoId) {
   return URL.createObjectURL(rec.blob);
 }
 
+export async function getPhotoBlob(photoId) {
+  const rec = await idb.get("photos", photoId);
+  return rec ? rec.blob : null;
+}
+
 // ---- Cola de sincronización offline (modo producción, useMock=false) ----
 
 export async function enqueueOutbox(op) {

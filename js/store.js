@@ -4,7 +4,7 @@
 // db.js ni a graph.js directamente.
 
 import { CONFIG } from "./config.js";
-import { idb, newId, savePhotoBlob, getPhotoUrl, enqueueOutbox } from "./db.js";
+import { idb, newId, savePhotoBlob, getPhotoUrl, getPhotoBlob, enqueueOutbox } from "./db.js";
 import * as graph from "./graph.js";
 
 // Las columnas de SharePoint solo aceptan valores planos (texto, número, fecha).
@@ -50,6 +50,32 @@ function fromGraphFields(listKey, rec) {
       } catch {
         out[key] = null;
       }
+    }
+  }
+  return out;
+}
+
+// Sube a la biblioteca "Evidencias" cualquier foto que todavía sea una
+// referencia local (blob guardado en IndexedDB por capturePhoto/SignaturePad)
+// y no una URL real de SharePoint, justo antes de escribir el registro en
+// Graph. En modo demo no hace nada — las fotos se quedan solo en el celular.
+// El objeto que ve el resto de la app conserva la referencia local (para
+// poder mostrar la miniatura al instante, incluso sin conexión); solo la
+// copia que se manda a Graph lleva la URL real.
+async function resolvePhotoField(value) {
+  if (CONFIG.useMock || !value || typeof value !== "string" || value.startsWith("http")) return value;
+  const blob = await getPhotoBlob(value);
+  if (!blob) return value; // no se encontró el blob local; se deja como está
+  return graph.graphUploadPhoto(blob, `${value}.jpg`);
+}
+
+async function resolvePhotoFields(rec, keys) {
+  const out = { ...rec };
+  for (const key of keys) {
+    if (Array.isArray(out[key])) {
+      out[key] = await Promise.all(out[key].map((v) => resolvePhotoField(v)));
+    } else if (out[key]) {
+      out[key] = await resolvePhotoField(out[key]);
     }
   }
   return out;
@@ -194,10 +220,10 @@ export async function getChecklist(checklistId) {
 export async function updateChecklistItem(item) {
   if (CONFIG.useMock) {
     await idb.put("checklistItems", item);
-  } else if (item._itemId) {
-    await graph.graphUpdateItemById("checklistItems", item._itemId, toGraphFields(item));
   } else {
-    await graph.graphUpdateItemByAppId("checklistItems", item.id, toGraphFields(item));
+    const graphItem = await resolvePhotoFields(item, ["photoId"]);
+    if (item._itemId) await graph.graphUpdateItemById("checklistItems", item._itemId, toGraphFields(graphItem));
+    else await graph.graphUpdateItemByAppId("checklistItems", item.id, toGraphFields(graphItem));
   }
   return item;
 }
@@ -205,10 +231,10 @@ export async function updateChecklistItem(item) {
 export async function updateChecklistCabecera(cabecera) {
   if (CONFIG.useMock) {
     await idb.put("checklistCab", cabecera);
-  } else if (cabecera._itemId) {
-    await graph.graphUpdateItemById("checklistCabecera", cabecera._itemId, toGraphFields(cabecera));
   } else {
-    await graph.graphUpdateItemByAppId("checklistCabecera", cabecera.id, toGraphFields(cabecera));
+    const graphCabecera = await resolvePhotoFields(cabecera, ["firmaProductorPhotoId", "firmaAuditorPhotoId"]);
+    if (cabecera._itemId) await graph.graphUpdateItemById("checklistCabecera", cabecera._itemId, toGraphFields(graphCabecera));
+    else await graph.graphUpdateItemByAppId("checklistCabecera", cabecera.id, toGraphFields(graphCabecera));
   }
   return cabecera;
 }
@@ -310,8 +336,9 @@ export async function saveSeguimiento(fields) {
   if (CONFIG.useMock) {
     await idb.put("seguimientos", rec);
   } else {
-    if (fields.id) await graph.graphUpdateItemByAppId("seguimientoSemanal", fields.id, toGraphFields(rec));
-    else await graph.graphCreateItem("seguimientoSemanal", toGraphFields(rec));
+    const graphRec = await resolvePhotoFields(rec, ["photoIds"]);
+    if (fields.id) await graph.graphUpdateItemByAppId("seguimientoSemanal", fields.id, toGraphFields(graphRec));
+    else await graph.graphCreateItem("seguimientoSemanal", toGraphFields(graphRec));
   }
   return rec;
 }
@@ -342,8 +369,9 @@ export async function saveRuta(fields) {
   if (CONFIG.useMock) {
     await idb.put("rutas", rec);
   } else {
-    if (fields.id) await graph.graphUpdateItemByAppId("rutaVisitas", fields.id, toGraphFields(rec));
-    else await graph.graphCreateItem("rutaVisitas", toGraphFields(rec));
+    const graphRec = await resolvePhotoFields(rec, ["photoId"]);
+    if (fields.id) await graph.graphUpdateItemByAppId("rutaVisitas", fields.id, toGraphFields(graphRec));
+    else await graph.graphCreateItem("rutaVisitas", toGraphFields(graphRec));
   }
   return rec;
 }
@@ -398,10 +426,12 @@ export async function addGastoLinea(gastoId, fields) {
     monto = Math.max(0, kmTotal) * CONFIG.kmRate;
   }
   const rec = { ...fields, id, gastoId, monto };
-  if (CONFIG.useMock) await idb.put("gastosDet", rec);
-  else {
-    if (fields.id) await graph.graphUpdateItemByAppId("gastosDetalle", fields.id, toGraphFields(rec));
-    else await graph.graphCreateItem("gastosDetalle", toGraphFields(rec));
+  if (CONFIG.useMock) {
+    await idb.put("gastosDet", rec);
+  } else {
+    const graphRec = await resolvePhotoFields(rec, ["photoId"]);
+    if (fields.id) await graph.graphUpdateItemByAppId("gastosDetalle", fields.id, toGraphFields(graphRec));
+    else await graph.graphCreateItem("gastosDetalle", toGraphFields(graphRec));
   }
   return rec;
 }
