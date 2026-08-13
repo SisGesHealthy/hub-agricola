@@ -123,8 +123,16 @@ function fromSharePointItem(listKey, it) {
 
 export async function graphGetItems(listKey, { filter, expand = "fields" } = {}) {
   const qs = new URLSearchParams({ expand });
-  if (filter) qs.set("$filter", filter);
-  const data = await graphFetch(`${listPath(listKey)}/items?${qs.toString()}`);
+  const options = {};
+  if (filter) {
+    qs.set("$filter", filter);
+    // Las columnas de estas listas (incluida "Title") no están indexadas —
+    // Graph rechaza filtrar por ellas a menos que se pida explícitamente con
+    // este header. Las listas son chicas, así que el riesgo de lentitud que
+    // advierte Graph no aplica aquí.
+    options.headers = { Prefer: "HonorNonIndexedQueriesWarningMayFailRandomly" };
+  }
+  const data = await graphFetch(`${listPath(listKey)}/items?${qs.toString()}`, options);
   return (data.value || []).map((it) => fromSharePointItem(listKey, it));
 }
 
