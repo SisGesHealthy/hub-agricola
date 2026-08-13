@@ -25,6 +25,36 @@ function toGraphFields(fields) {
   return out;
 }
 
+// Contraparte de toGraphFields: SharePoint solo guarda texto plano, así que
+// hay que reconstruir los arreglos y objetos que espera la UI (coordenadas
+// GPS, listas de fotos, proveedores marcados) al leer los registros de vuelta.
+// No aplica en modo demo — IndexedDB ya guarda los valores con su forma real.
+const GRAPH_FIELD_SHAPES = {
+  rutaVisitas: { coordsPlan: "json", coordsReales: "json" },
+  seguimientoSemanal: { coords: "json", photoIds: "array" },
+  gastosCabecera: { proveedoresVisitados: "array" },
+};
+
+function fromGraphFields(listKey, rec) {
+  const shape = GRAPH_FIELD_SHAPES[listKey];
+  if (!rec || !shape) return rec;
+  const out = { ...rec };
+  for (const [key, kind] of Object.entries(shape)) {
+    const value = out[key];
+    if (typeof value !== "string") continue; // ya viene con su forma real, o es null/undefined
+    if (kind === "array") {
+      out[key] = value ? value.split(",") : [];
+    } else if (kind === "json") {
+      try {
+        out[key] = value ? JSON.parse(value) : null;
+      } catch {
+        out[key] = null;
+      }
+    }
+  }
+  return out;
+}
+
 let catalogoCache = null;
 
 async function loadCatalogoRequisitos() {
@@ -259,7 +289,9 @@ function isoWeek(dateStr) {
 }
 
 export async function listSeguimientos() {
-  const all = CONFIG.useMock ? await idb.getAll("seguimientos") : await graph.graphGetItems("seguimientoSemanal");
+  const all = CONFIG.useMock
+    ? await idb.getAll("seguimientos")
+    : (await graph.graphGetItems("seguimientoSemanal")).map((r) => fromGraphFields("seguimientoSemanal", r));
   const proveedores = await listProveedores();
   const byId = Object.fromEntries(proveedores.map((p) => [p.id, p]));
   return all
@@ -288,7 +320,9 @@ export async function saveSeguimiento(fields) {
 // Ruta de Visitas
 // ---------------------------------------------------------------------------
 export async function listRutas() {
-  const all = CONFIG.useMock ? await idb.getAll("rutas") : await graph.graphGetItems("rutaVisitas");
+  const all = CONFIG.useMock
+    ? await idb.getAll("rutas")
+    : (await graph.graphGetItems("rutaVisitas")).map((r) => fromGraphFields("rutaVisitas", r));
   const proveedores = await listProveedores();
   const byId = Object.fromEntries(proveedores.map((p) => [p.id, p]));
   return all
@@ -318,14 +352,16 @@ export async function saveRuta(fields) {
 // Gastos de Viaje
 // ---------------------------------------------------------------------------
 export async function listGastos() {
-  const all = CONFIG.useMock ? await idb.getAll("gastosCab") : await graph.graphGetItems("gastosCabecera");
+  const all = CONFIG.useMock
+    ? await idb.getAll("gastosCab")
+    : (await graph.graphGetItems("gastosCabecera")).map((r) => fromGraphFields("gastosCabecera", r));
   return all.sort((a, b) => b.createdAt - a.createdAt);
 }
 
 export async function getGasto(gastoId) {
   const cabecera = CONFIG.useMock
     ? await idb.get("gastosCab", gastoId)
-    : (await graph.graphGetItems("gastosCabecera", { filter: `fields/Title eq '${gastoId}'` }))[0];
+    : fromGraphFields("gastosCabecera", (await graph.graphGetItems("gastosCabecera", { filter: `fields/Title eq '${gastoId}'` }))[0]);
   const lineas = CONFIG.useMock
     ? await idb.getAllByIndex("gastosDet", "byGasto", gastoId)
     : await graph.graphGetItems("gastosDetalle", { filter: `fields/${graph.spFieldName("gastosDetalle", "gastoId")} eq '${gastoId}'` });
