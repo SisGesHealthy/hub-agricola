@@ -155,7 +155,7 @@ export async function getChecklist(checklistId) {
     : (await graph.graphGetItems("checklistCabecera", { filter: `fields/Title eq '${checklistId}'` }))[0];
   const items = CONFIG.useMock
     ? await idb.getAllByIndex("checklistItems", "byChecklist", checklistId)
-    : await graph.graphGetItems("checklistItems", { filter: `fields/checklistId eq '${checklistId}'` });
+    : await graph.graphGetItems("checklistItems", { filter: `fields/${graph.spFieldName("checklistItems", "checklistId")} eq '${checklistId}'` });
   items.sort((a, b) => (a.catNum - b.catNum) || String(a.reqNum).localeCompare(String(b.reqNum), undefined, { numeric: true }));
   const proveedor = cabecera ? await getProveedor(cabecera.proveedorId) : null;
   return { cabecera, items, proveedor };
@@ -328,7 +328,7 @@ export async function getGasto(gastoId) {
     : (await graph.graphGetItems("gastosCabecera", { filter: `fields/Title eq '${gastoId}'` }))[0];
   const lineas = CONFIG.useMock
     ? await idb.getAllByIndex("gastosDet", "byGasto", gastoId)
-    : await graph.graphGetItems("gastosDetalle", { filter: `fields/gastoId eq '${gastoId}'` });
+    : await graph.graphGetItems("gastosDetalle", { filter: `fields/${graph.spFieldName("gastosDetalle", "gastoId")} eq '${gastoId}'` });
   return { cabecera, lineas: lineas.sort((a, b) => (a.fecha || "").localeCompare(b.fecha || "")) };
 }
 

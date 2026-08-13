@@ -99,6 +99,14 @@ function toSharePointFields(listKey, fields) {
   return mapped;
 }
 
+// Traduce un nombre de campo de la app (p.ej. "checklistId") al nombre
+// interno real de SharePoint (p.ej. "field_1") para usarlo dentro de un
+// $filter de Graph — los nombres de la app no existen como columnas reales.
+export function spFieldName(listKey, appKey) {
+  if (appKey === "id") return "Title";
+  return (FIELD_MAPS[listKey] || {})[appKey] || appKey;
+}
+
 function fromSharePointItem(listKey, it) {
   const rawFields = { ...it.fields };
   const id = rawFields.Title;
