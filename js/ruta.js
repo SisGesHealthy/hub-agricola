@@ -173,11 +173,14 @@ async function renderRutaDetail(root, ruta) {
       {
         class: "btn",
         onclick: async () => {
-          btn.disabled = true;
-          btn.textContent = "Obteniendo GPS…";
+          // La foto se pide primero: abrir el selector de archivo/cámara
+          // requiere un gesto de usuario "fresco" — si se espera el GPS antes,
+          // el navegador ya no lo considera un clic real y bloquea la cámara.
           try {
-            const coordsReales = await captureLocation();
             const photoId = await capturePhoto();
+            btn.disabled = true;
+            btn.textContent = "Obteniendo GPS…";
+            const coordsReales = await captureLocation();
             await store.saveRuta({ ...ruta, estado: "Realizada", coordsReales, photoId });
             toast("Visita marcada como realizada", "success");
             renderRutaHome(root);
