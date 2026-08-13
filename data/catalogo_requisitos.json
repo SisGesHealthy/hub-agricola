@@ -1,0 +1,578 @@
+[
+  {
+    "catNum": 1,
+    "catName": "DEL MATERIAL VEGETAL",
+    "reqNum": "1.1",
+    "text": "Se utiliza materiales vegetales procedentes de centros de propagación vegetativa oficialmente autorizados."
+  },
+  {
+    "catNum": 1,
+    "catName": "DEL MATERIAL VEGETAL",
+    "reqNum": "1.2",
+    "text": "En caso de que el material vegetal esté siendo atacado por una enfermedad crónica que atente directamente con las características fisicoquímicas deseadas de la fruta, el proveedor toma acciones directas ante ese problema."
+  },
+  {
+    "catNum": 2,
+    "catName": "DEL USO DEL SUELO",
+    "reqNum": "2.1",
+    "text": "No se emplean terrenos que se dedicaron a actividades industriales que impliquen la incorporación de contaminantes químicos dañinos para la salud humana."
+  },
+  {
+    "catNum": 2,
+    "catName": "DEL USO DEL SUELO",
+    "reqNum": "2.2",
+    "text": "Existe un sistema de referencia para cada parcela, huerto, sector o lote (señaléticas físicas, mapas, entre otros.)"
+  },
+  {
+    "catNum": 2,
+    "catName": "DEL USO DEL SUELO",
+    "reqNum": "2.3",
+    "text": "En los terrenos donde existen actividades pecuarias, en caso de reusar sus desechos, se trata el estiércol de manera previa a su incorporación en el suelo."
+  },
+  {
+    "catNum": 2,
+    "catName": "DEL USO DEL SUELO",
+    "reqNum": "2.4",
+    "text": "En el caso de cultivos semihidropónicos o en invernadero. Utiliza sustratos y/o suelo proveniente de lugares registrados o certificados."
+  },
+  {
+    "catNum": 2,
+    "catName": "DEL USO DEL SUELO",
+    "reqNum": "2.5",
+    "text": "Se realiza análisis de contaminantes ya sean de residuos de plaguicidas para conocer LMR, metales pesados en cantidades tóxicas, trazas de quema de combustibles fósiles o rastros de actividades industriales."
+  },
+  {
+    "catNum": 2,
+    "catName": "DEL USO DEL SUELO",
+    "reqNum": "2.6",
+    "text": "En los terrenos donde existen actividades pecuarias, se excluye o mantiene alejados a los animales domésticos de las áreas de cultivos ya sea manteniendolos en corrales o utilizando alguna estrategia."
+  },
+  {
+    "catNum": 2,
+    "catName": "DEL USO DEL SUELO",
+    "reqNum": "2.7",
+    "text": "Se han aplicado técnicas para mejorar o mantener la estructura del suelo, esto, con el fin de evitar la erosión y compactación del suelo. Técnicas se pueden incluir como el uso de mulching, plantación de árboles, siembra de cultivos como abonos verdes, drenajes, entre otros."
+  },
+  {
+    "catNum": 2,
+    "catName": "DEL USO DEL SUELO",
+    "reqNum": "2.8",
+    "text": "El proveedor ha construido dentro de la UPA barreras físicas tales como zanjas terraplenes, acequias revestidas, cercas eléctricas y franjas de vegetación o zanjas vivas."
+  },
+  {
+    "catNum": 3,
+    "catName": "DEL USO DE TERRENOS COLINDANTES",
+    "reqNum": "3.1",
+    "text": "Dispone de información sobre el uso del predio colindante o vecino."
+  },
+  {
+    "catNum": 3,
+    "catName": "DEL USO DE TERRENOS COLINDANTES",
+    "reqNum": "3.2",
+    "text": "En los terrenos vecinos se ha implementado medidas de control como cercas vivas, enfocándose también a la producción ganadera que pudiése tener el terreno vecino. Esto, con el fin de evitar contaminación cruzada."
+  },
+  {
+    "catNum": 3,
+    "catName": "DEL USO DE TERRENOS COLINDANTES",
+    "reqNum": "3.3",
+    "text": "Se destina recipientes o áreas específicas para la disposición de basura y otros desechos que son fuentes de contaminación."
+  },
+  {
+    "catNum": 3,
+    "catName": "DEL USO DE TERRENOS COLINDANTES",
+    "reqNum": "3.4",
+    "text": "Se da mantenimiento a  la cercas vivas con labores como la poda y limpieza de linderos para prevenir la proliferación de plagas y la acumulación de basura."
+  },
+  {
+    "catNum": 3,
+    "catName": "DEL USO DE TERRENOS COLINDANTES",
+    "reqNum": "3.5",
+    "text": "Se han establecido zanjas alrededor de la zona productiva en caso de que la pendiente sea alta y haya riesgos de escurrimiento interno u externo  que provoque contaminación"
+  },
+  {
+    "catNum": 4,
+    "catName": "DE GESTION DEL SUELO",
+    "reqNum": "4.1",
+    "text": "En base a la zonificación agroecológica, se conoce la clasificación del suelo (utilizando mapas de uso actual y potencial del suelo proporcionado por los gobiernos autónomos descentralizados u otro ente), se analiza factores como: Clase de suelo (características físicas, químicas y biológicas) - Temperatura - Altitud - Topografía - Humedad relativa - Pluviosidad."
+  },
+  {
+    "catNum": 4,
+    "catName": "DE GESTION DEL SUELO",
+    "reqNum": "4.2",
+    "text": "Se ha realizado análisis de suelo (propiedades químicas, capacidad, composición nutricional, condiciones edáficas, temperatura, entre otros.)"
+  },
+  {
+    "catNum": 4,
+    "catName": "DE GESTION DEL SUELO",
+    "reqNum": "4.3",
+    "text": "Se brinda mantenimiento al equipo, herramientas y maquinaria utilizados en la unidad de producción agrícola. Se limpia y desinfecta antes y después de usarlos, y durante la operación."
+  },
+  {
+    "catNum": 4,
+    "catName": "DE GESTION DEL SUELO",
+    "reqNum": "4.4",
+    "text": "Si amerita una desinfección del suelo, se realiza mediante técnicas como la solarización, los tratamientos térmicos, los tratamientos químicos, el movimiento del suelo y/o la bioaplicación, entre otras."
+  },
+  {
+    "catNum": 5,
+    "catName": "DE SIEMBRA",
+    "reqNum": "5.1",
+    "text": "Esta relacionado con la práctica de labranza cero o labranza mínima y la aplica en su UPA. ."
+  },
+  {
+    "catNum": 5,
+    "catName": "DE SIEMBRA",
+    "reqNum": "5.2",
+    "text": "Incorpora materia orgánica en cada proceso de presiembra, describir si lo hacen también en diferentes fases fenológicas."
+  },
+  {
+    "catNum": 5,
+    "catName": "DE SIEMBRA",
+    "reqNum": "5.3",
+    "text": "Lleva un registro del número o identificación del lote sembrado, la fecha de siembra, la variedad, la cantidad de plantas y el tipo de material de siembra, así como de la procedencia de la semilla y del material vegetal de propagación."
+  },
+  {
+    "catNum": 6,
+    "catName": "DE FERTILIZACION",
+    "reqNum": "6.1",
+    "text": "Los fertilizantes utilizados están registrados por la autoridad competente."
+  },
+  {
+    "catNum": 6,
+    "catName": "DE FERTILIZACION",
+    "reqNum": "6.2",
+    "text": "El uso de tal producto, cantidad y dosificación de un fertilizante esta expresamente recomendado y documentado por un profesional agrónomo."
+  },
+  {
+    "catNum": 6,
+    "catName": "DE FERTILIZACION",
+    "reqNum": "6.3",
+    "text": "Se propende a la utilización de abonos orgánicos enriquecidos y a la disminución del uso de fertilizantes químicos. Teniendo en cuenta que deben pasar por un proceso de preparación hasta que sean aptos para su uso (Indicar tratamiento)."
+  },
+  {
+    "catNum": 6,
+    "catName": "DE FERTILIZACION",
+    "reqNum": "6.4",
+    "text": "Se almacenan los fertilizantes químicos y abonos orgánicos en espacios físicos independientes debidamente identificados, en lugares secos, ventilados y aislados. Donde se mantienen los sólidos (polvo o granulado) de 25 kg máximo de peso en la parte superior de los estantes, en tanto que los líquidos en la parte inferior."
+  },
+  {
+    "catNum": 6,
+    "catName": "DE FERTILIZACION",
+    "reqNum": "6.5",
+    "text": "En el caso de producir abonos orgánicos, el sitio de producción y almacenaje es apropiado, cuenta con medidas preventivas para reducir el riesgo de contaminación."
+  },
+  {
+    "catNum": 6,
+    "catName": "DE FERTILIZACION",
+    "reqNum": "6.6",
+    "text": "Se dispone de registros e inventarios de los fertilizantes. Fechas exactas de aplicación (DD-MM-AA), superficie tratada, tipo de fertilizante, composición química base del fertilizante, cantidad de producto aplicado, metodología de aplicación, identificación del personal que realizó la actividad."
+  },
+  {
+    "catNum": 7,
+    "catName": "DE AGUA DE RIEGO",
+    "reqNum": "7.1",
+    "text": "Se evalúa al menos una vez al año, dependiendo de los riesgos, la calidad microbiológica y físico-química de las fuentes de agua a utilizar (pozo, canal abierto, embalses, ríos, lagos, entre otros)."
+  },
+  {
+    "catNum": 7,
+    "catName": "DE AGUA DE RIEGO",
+    "reqNum": "7.2",
+    "text": "Con el fin de evitar que la fuente de agua esté contaminada. Se implementan medidas preventivas que garanticen su calidad sanitaria y eviten condiciones adversas como contaminación al producto por contacto directo."
+  },
+  {
+    "catNum": 7,
+    "catName": "DE AGUA DE RIEGO",
+    "reqNum": "7.3",
+    "text": "Se realiza mediciones periódicas fundamentadas en los requerimientos del cultivo y en datos como: precipitaciones pluviales, evapotranspiración, textura del suelo, entre otros."
+  },
+  {
+    "catNum": 7,
+    "catName": "DE AGUA DE RIEGO",
+    "reqNum": "7.4",
+    "text": "Se evita utilizar aguas residuales de cualquier tipo no tratadas para el riego."
+  },
+  {
+    "catNum": 7,
+    "catName": "DE AGUA DE RIEGO",
+    "reqNum": "7.5",
+    "text": "Se tiene un plan de riego, el cual defina una revisión periódica del sistema de riego y de sus implementos, así como un registro de consumo de agua."
+  },
+  {
+    "catNum": 7,
+    "catName": "DE AGUA DE RIEGO",
+    "reqNum": "7.6",
+    "text": "Existen instalaciones como reservorios para el almacenamiento de agua con el fin de aprovechar los periodos de mayor disponibilidad. O en distintos casos el uso de artículos como tanques."
+  },
+  {
+    "catNum": 7,
+    "catName": "DE AGUA DE RIEGO",
+    "reqNum": "7.7",
+    "text": "Los recipientes de almacenamiento son utilizados solamente para esa actividad. No se usan para preparar caldos de aplicación."
+  },
+  {
+    "catNum": 8,
+    "catName": "DE PROTECCION DE CULTIVOS",
+    "reqNum": "8.1",
+    "text": "Todos los plaguicidas de uso agrícola aplicados están registrados por el ente competente."
+  },
+  {
+    "catNum": 8,
+    "catName": "DE PROTECCION DE CULTIVOS",
+    "reqNum": "8.2",
+    "text": "Esta familiarizado con el MIP (Manejo Integrado de Plagas) y lo aplica, teniendo en cuenta que al manejo de plagas y enfermedades se le suma otras clases de control como el etológico y biológico, esto, dependiendo de la capacidad tecnológica de la finca."
+  },
+  {
+    "catNum": 8,
+    "catName": "DE PROTECCION DE CULTIVOS",
+    "reqNum": "8.3",
+    "text": "Se mantienen respaldos de información registrada como: moléculas utilizadas, días de aplicación, dosificación, periodos de carencia, rotación de productos, identidad del operador, lote aplicado y otra información considerada de importancia."
+  },
+  {
+    "catNum": 8,
+    "catName": "DE PROTECCION DE CULTIVOS",
+    "reqNum": "8.4",
+    "text": "Comprende todo el instructivo dispuesto en la ficha técnica de la etiqueta del producto."
+  },
+  {
+    "catNum": 8,
+    "catName": "DE PROTECCION DE CULTIVOS",
+    "reqNum": "8.5",
+    "text": "La aplicación de los plaguicidas se realiza utilizando el equipo de protección personal (EPP) recomendado, con el objeto de salvaguardar la salud de los trabajadores."
+  },
+  {
+    "catNum": 8,
+    "catName": "DE PROTECCION DE CULTIVOS",
+    "reqNum": "8.6",
+    "text": "No se permite que las mujeres en período de gestación o lactancia, los adolescentes y los niños manipulen agroquímicos."
+  },
+  {
+    "catNum": 8,
+    "catName": "DE PROTECCION DE CULTIVOS",
+    "reqNum": "8.7",
+    "text": "Los equipos e implementos se guardan en una bodega exclusiva para este fin."
+  },
+  {
+    "catNum": 8,
+    "catName": "DE PROTECCION DE CULTIVOS",
+    "reqNum": "8.8",
+    "text": "Cumple los plazos de seguridad de precosecha registrados."
+  },
+  {
+    "catNum": 8,
+    "catName": "DE PROTECCION DE CULTIVOS",
+    "reqNum": "8.9",
+    "text": "Mantiene un espacio aislado para el almacenamiento de agroquímicos, o en el caso de compartir el sitio con fertilizantes y bioestimulantes, éstos se encuentran apartados ya sea por lonas o alguna otra barrera física."
+  },
+  {
+    "catNum": 8,
+    "catName": "DE PROTECCION DE CULTIVOS",
+    "reqNum": "8.10",
+    "text": "En el caso de sobrepasar el LMR, el proveedor tiene un plan de acción."
+  },
+  {
+    "catNum": 8,
+    "catName": "DE PROTECCION DE CULTIVOS",
+    "reqNum": "8.11",
+    "text": "El productor cuenta con las herramientas necesarias para medir las cantidades y mezclar el producto a aplicar."
+  },
+  {
+    "catNum": 8,
+    "catName": "DE PROTECCION DE CULTIVOS",
+    "reqNum": "8.12",
+    "text": "Los materiales de las estanterías donde los productos se encuentran almacenados no son absorbentes."
+  },
+  {
+    "catNum": 9,
+    "catName": "DE GESTION DE RESIDUOS Y AGENTES CONTAMINANTES",
+    "reqNum": "9.1",
+    "text": "Los recipientes vacíos de agroquímicos son sometidos a un triple lavado, perforados, sin tapas y secos. Después son devueltos a las casas comercializadoras o empresas que realicen la eliminación de éstos. El productor está al tanto de que las tapas de los recipientes se entregan por separado."
+  },
+  {
+    "catNum": 9,
+    "catName": "DE GESTION DE RESIDUOS Y AGENTES CONTAMINANTES",
+    "reqNum": "9.2",
+    "text": "Los desechos o residuos, producto de aplicación, mantenimiento y calibración de la maquinaria y equipo son eliminados de forma adecuada."
+  },
+  {
+    "catNum": 9,
+    "catName": "DE GESTION DE RESIDUOS Y AGENTES CONTAMINANTES",
+    "reqNum": "9.3",
+    "text": "El productor conoce y cuenta con una lista actualizada de los Límites Máximos de Residuos (LMR) en el producto final, recomendados y aprobados por el Codex."
+  },
+  {
+    "catNum": 9,
+    "catName": "DE GESTION DE RESIDUOS Y AGENTES CONTAMINANTES",
+    "reqNum": "9.4",
+    "text": "Frente a problemas fitosanitarios o de calidad en las entregas ha establecido un procedimiento documentado que indique claramente las medidas correctivas (incluyendo comunicación a clientes, ejercicios de seguimiento al producto y eliminación, entre otros)."
+  },
+  {
+    "catNum": 10,
+    "catName": "DE COSECHA",
+    "reqNum": "10.1",
+    "text": "Evita el proveedor hacer cosechas de producto en condiciones adversas como sol intenso, lluvia torrentosa, humedad excesiva, presencia de rocío, entre otros."
+  },
+  {
+    "catNum": 10,
+    "catName": "DE COSECHA",
+    "reqNum": "10.2",
+    "text": "Mantiene registros de cosecha: fechas de recolección, cantidad de jornales por cosecha, recipientes utilizados."
+  },
+  {
+    "catNum": 10,
+    "catName": "DE COSECHA",
+    "reqNum": "10.3",
+    "text": "El proceso de cosecha es realizado garantizando el cuidado del producto (detallar el proceso de recolección)."
+  },
+  {
+    "catNum": 10,
+    "catName": "DE COSECHA",
+    "reqNum": "10.4",
+    "text": "El recipiente o artículo de cosecha está diseñado adecuadamente para permitir su limpieza, desinfección y mantenimiento, así como el lavado y desinfectado cada vez que se realicen nuevas tareas de cosecha."
+  },
+  {
+    "catNum": 10,
+    "catName": "DE COSECHA",
+    "reqNum": "10.5",
+    "text": "Se ha capacitado al personal de cosecha o al jornal contratado de la correcta manipulación del producto una vez cosechado, esto, con el fin de salvaguardar la higiene e inocuidad de los productos."
+  },
+  {
+    "catNum": 10,
+    "catName": "DE COSECHA",
+    "reqNum": "10.6",
+    "text": "El producto cosechado es cubierto hasta que sea trasladado al sitio de poscosecha."
+  },
+  {
+    "catNum": 11,
+    "catName": "DE POSCOSECHA",
+    "reqNum": "11.1",
+    "text": "Se cuenta con un plan de manejo y limpieza estándar de las herramientas, materiales y equipos a utilizar en este proceso (explicar proceso)."
+  },
+  {
+    "catNum": 11,
+    "catName": "DE POSCOSECHA",
+    "reqNum": "11.2",
+    "text": "En el caso de ameritarlo, utiliza insumos químicos para tratar enfermedades poscosecha (detallar la siguiente información: están registrados, mantiene información de dosificación, día de aplicación, entre otros)."
+  },
+  {
+    "catNum": 11,
+    "catName": "DE POSCOSECHA",
+    "reqNum": "11.3",
+    "text": "No se utiliza las superficies o recipientes en caso de requerirlo para otros fines."
+  },
+  {
+    "catNum": 11,
+    "catName": "DE POSCOSECHA",
+    "reqNum": "11.4",
+    "text": "Se mantiene limpio y desinfectado el vehículo de transporte del producto."
+  },
+  {
+    "catNum": 11,
+    "catName": "DE POSCOSECHA",
+    "reqNum": "11.5",
+    "text": "Los operarios utilizan equipo adecuado para la manipulación de productos (delantales, cofias, guantes, mascarillas), así como, ropa limpia y en buen estado."
+  },
+  {
+    "catNum": 12,
+    "catName": "DE INSTALACIONES (EN CASO DE CONTAR CON UNA)",
+    "reqNum": "12.1",
+    "text": "La instalaciones están  diseñadas y construidas de acuerdo a algún reglamento privado o público de buenas prácticas de procesamiento."
+  },
+  {
+    "catNum": 12,
+    "catName": "DE INSTALACIONES (EN CASO DE CONTAR CON UNA)",
+    "reqNum": "12.2",
+    "text": "Se cuenta con sistemas de desagüe y eliminación de desechos construidos de manera que se evite el peligro de contaminación de los alimentos o del abastecimiento de agua potable."
+  },
+  {
+    "catNum": 12,
+    "catName": "DE INSTALACIONES (EN CASO DE CONTAR CON UNA)",
+    "reqNum": "12.3",
+    "text": "Se cuenta con rodiluvios y pediluvios a la entrada de las instalaciones."
+  },
+  {
+    "catNum": 12,
+    "catName": "DE INSTALACIONES (EN CASO DE CONTAR CON UNA)",
+    "reqNum": "12.4",
+    "text": "No se hayan en el sitio escombros o basura."
+  },
+  {
+    "catNum": 12,
+    "catName": "DE INSTALACIONES (EN CASO DE CONTAR CON UNA)",
+    "reqNum": "12.5",
+    "text": "Las instalaciones cuentan con techos, paredes, pisos, puertas y ventanas construidos con materiales impermeables no porosos, no tóxicos, de fácil lavado y desinfección."
+  },
+  {
+    "catNum": 12,
+    "catName": "DE INSTALACIONES (EN CASO DE CONTAR CON UNA)",
+    "reqNum": "12.6",
+    "text": "Las instalaciones se  limpian y desinfectan después de las actividades de trabajo."
+  },
+  {
+    "catNum": 13,
+    "catName": "DE PROCESO DE LAVADO",
+    "reqNum": "13.1",
+    "text": "El agua que se utiliza para el tratamiento es potable o declarada adecuada."
+  },
+  {
+    "catNum": 13,
+    "catName": "DE PROCESO DE LAVADO",
+    "reqNum": "13.2",
+    "text": "Se controla la temperatura y tiempo de contacto, cantidad de desinfectante durante el lavado (especificar el proceso)."
+  },
+  {
+    "catNum": 13,
+    "catName": "DE PROCESO DE LAVADO",
+    "reqNum": "13.3",
+    "text": "Se desinfecta la superficie de las frutas con productos registrados y dosis recomendadas por los fabricantes, considerando los factores que pueden afectar la eficiencia del desinfectante como: la temperatura del agua, el pH, la concentración del desinfectante, la concentración de materia orgánica, el volumen de producto a desinfectar y el grado de madurez del mismo."
+  },
+  {
+    "catNum": 14,
+    "catName": "DE CLASIFICACION",
+    "reqNum": "14.1",
+    "text": "El producto muy maduro, con presencia de daño mecánico, rechazado o contaminado no se introduce en la cadena de suministro, es controlado eficientemente."
+  },
+  {
+    "catNum": 14,
+    "catName": "DE CLASIFICACION",
+    "reqNum": "14.2",
+    "text": "Se limpia y desinfecta la zona de clasificación una vez culminada la actividad"
+  },
+  {
+    "catNum": 14,
+    "catName": "DE CLASIFICACION",
+    "reqNum": "14.3",
+    "text": "Se almacenan productos lubricantes, de limpieza o desinfectantes en sitios aislados."
+  },
+  {
+    "catNum": 14,
+    "catName": "DE CLASIFICACION",
+    "reqNum": "14.4",
+    "text": "Los operarios se encuentran capacitados en el manejo de producto en esta etapa, teniendo en cuenta lo primordial de una correcta higiene."
+  },
+  {
+    "catNum": 15,
+    "catName": "DE EMPACADO",
+    "reqNum": "15.1",
+    "text": "Se utiliza los recipientes de transporte conforme se ha solicitado en el protocolo de la empresa incluyendo artículos como fundas o protectores para salvaguardar la calidad de la fruta."
+  },
+  {
+    "catNum": 15,
+    "catName": "DE EMPACADO",
+    "reqNum": "15.2",
+    "text": "El material del empaque esta libre de plagas, y es adecuado para la transportación, refrigeración, almacenaje y estiba. Los materiales empleados en el empaque son de un material que no transmite sustancias tóxicas, olores ni sabores."
+  },
+  {
+    "catNum": 16,
+    "catName": "DE CUARTO FRIO",
+    "reqNum": "16.1",
+    "text": "Se registra y se mantiene las temperaturas y rotación del aire dentro de las cámaras en los rangos adecuados dentro del cuarto frío."
+  },
+  {
+    "catNum": 16,
+    "catName": "DE CUARTO FRIO",
+    "reqNum": "16.2",
+    "text": "La limpieza y desinfección de los cuartos fríos se realiza de manera periódica con el fin de evitar la contaminación."
+  },
+  {
+    "catNum": 17,
+    "catName": "DE ALMACENAMIENTO Y TRANSPORTE",
+    "reqNum": "17.1",
+    "text": "Las bodegas disponen de las condiciones adecuadas de ventilación, están protegidas de la humedad y de plagas en general, y cuentan con áreas correctamente señalizadas."
+  },
+  {
+    "catNum": 17,
+    "catName": "DE ALMACENAMIENTO Y TRANSPORTE",
+    "reqNum": "17.2",
+    "text": "En caso de ameritarlo se mantiene separados y organizados productos diferentes obtenidos de la Unidad de Producción."
+  },
+  {
+    "catNum": 17,
+    "catName": "DE ALMACENAMIENTO Y TRANSPORTE",
+    "reqNum": "17.3",
+    "text": "La carga y descarga del producto se realiza de tal manera que se minimicen los daños mecánicos y los peligros sanitarios."
+  },
+  {
+    "catNum": 17,
+    "catName": "DE ALMACENAMIENTO Y TRANSPORTE",
+    "reqNum": "17.4",
+    "text": "No permite el ingreso al área de personas no autorizadas y animales."
+  },
+  {
+    "catNum": 18,
+    "catName": "DE LA DOCUMENTACION",
+    "reqNum": "18.1",
+    "text": "Mantiene en un solo documento los registros solicitados en el presente Check List, esto, incluido a la información base de la Unidad de Producción incluida la información del propietario, ubicación, entre otros. Con el fin de mantener la trazabilidad de producto."
+  },
+  {
+    "catNum": 18,
+    "catName": "DE LA DOCUMENTACION",
+    "reqNum": "18.2",
+    "text": "Se conservan al menos 2 años información de importancia en materia de salud, inocuidad y agronomía (por ej. Análisis de pesticidas, análisis de suelo y agua, entre otros.)"
+  },
+  {
+    "catNum": 19,
+    "catName": "DE LA HIGIENE, SALUD,  SEGURIDAD Y BIENESTAR DE LOS TRABAJADORES",
+    "reqNum": "19.1",
+    "text": "Existen manuales de procedimientos accesibles sobre las prácticas higiénicas del personal, las mismas que deben ser aplicadas cada vez que se inicien las actividades de manipulación del producto y mientras se realicen las de manejo del cultivo, cosecha y selección."
+  },
+  {
+    "catNum": 19,
+    "catName": "DE LA HIGIENE, SALUD,  SEGURIDAD Y BIENESTAR DE LOS TRABAJADORES",
+    "reqNum": "19.2",
+    "text": "El material divulgativo sobre higiene de los (las) trabajadores se encuentra fácilmente visible, es de lenguaje sencillo e ilustrativo."
+  },
+  {
+    "catNum": 19,
+    "catName": "DE LA HIGIENE, SALUD,  SEGURIDAD Y BIENESTAR DE LOS TRABAJADORES",
+    "reqNum": "19.3",
+    "text": "La Unidad de Producción cuenta con áreas sanitarias limpias (letrinas, baños o sanitarios portátiles), están ubicadas estratégicamente cerca del área de trabajo, cuentan con los medios adecuados para el lavado y secado higiénico de las manos como: agua limpia, jabón, desinfectante, papel, depósitos de basura."
+  },
+  {
+    "catNum": 19,
+    "catName": "DE LA HIGIENE, SALUD,  SEGURIDAD Y BIENESTAR DE LOS TRABAJADORES",
+    "reqNum": "19.4",
+    "text": "Mantiene en lugares visibles y accesibles un listado de los números de teléfonos de emergencia."
+  },
+  {
+    "catNum": 19,
+    "catName": "DE LA HIGIENE, SALUD,  SEGURIDAD Y BIENESTAR DE LOS TRABAJADORES",
+    "reqNum": "19.5",
+    "text": "La Unidad de Producción cuenta con herramientas de primeros auxilios como un botiquín médico."
+  },
+  {
+    "catNum": 19,
+    "catName": "DE LA HIGIENE, SALUD,  SEGURIDAD Y BIENESTAR DE LOS TRABAJADORES",
+    "reqNum": "19.6",
+    "text": "Se limpia la ropa de protección después de su uso y se guarda de manera que impida la contaminación de la ropa personal."
+  },
+  {
+    "catNum": 19,
+    "catName": "DE LA HIGIENE, SALUD,  SEGURIDAD Y BIENESTAR DE LOS TRABAJADORES",
+    "reqNum": "19.7",
+    "text": "Tienen acceso los empleados a áreas donde puedan guardar sus alimentos, tomar descanso."
+  },
+  {
+    "catNum": 19,
+    "catName": "DE LA HIGIENE, SALUD,  SEGURIDAD Y BIENESTAR DE LOS TRABAJADORES",
+    "reqNum": "19.8",
+    "text": "El productor ofrece a los trabajadores que realizan la actividad de fumigación la posibilidad de realizarse controles médicos al menos una vez al año o acorde a una evaluación de riesgos."
+  },
+  {
+    "catNum": 19,
+    "catName": "DE LA HIGIENE, SALUD,  SEGURIDAD Y BIENESTAR DE LOS TRABAJADORES",
+    "reqNum": "19.9",
+    "text": "Se restringe al personal de fumar o consumir alimentos o bebidas en áreas específicas de la Unidad de Producción."
+  },
+  {
+    "catNum": 19,
+    "catName": "DE LA HIGIENE, SALUD,  SEGURIDAD Y BIENESTAR DE LOS TRABAJADORES",
+    "reqNum": "19.10",
+    "text": "La ropa que ha sido utilizada por el/la trabajador/a en la aplicación de plaguicidas no sale de la unidad de producción agrícola y es lavada separadamente de la ropa de uso normal."
+  },
+  {
+    "catNum": 20,
+    "catName": "DEL AMBIENTE",
+    "reqNum": "20.1",
+    "text": "Existen planes para convertir zonas improductivas agrícolas en áreas de conservación de flora y fauna dentro de la Unidad de Producción."
+  }
+]
