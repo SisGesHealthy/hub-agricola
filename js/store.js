@@ -153,6 +153,19 @@ export async function saveProveedor(fields) {
   return graph.graphCreateItem("proveedores", toGraphFields({ ...fields, id: newId("prov") }));
 }
 
+// Borra un proveedor (p.ej. un duplicado de prueba). Los checklists,
+// seguimientos, rutas y gastos que ya lo referenciaban no se tocan — cada
+// pantalla ya muestra "Proveedor eliminado" cuando no lo encuentra, así que
+// no queda ningún dato roto.
+export async function deleteProveedor(id) {
+  if (CONFIG.useMock) {
+    await idb.delete("proveedores", id);
+    return;
+  }
+  const [rec] = await graph.graphGetItems("proveedores", { filter: `fields/Title eq '${id}'` });
+  if (rec?._itemId) await graph.graphDeleteItemById("proveedores", rec._itemId);
+}
+
 // ---------------------------------------------------------------------------
 // Check List (cabecera + 96 ítems)
 // ---------------------------------------------------------------------------

@@ -77,6 +77,24 @@ async function renderNewChecklistPicker(root) {
   const proveedores = await store.listProveedores();
   const card = el("div", { class: "card" });
   proveedores.forEach((p) => {
+    const rt = el("div", { class: "rt" }, [
+      p.ultimaPonderacion != null ? el("div", { class: "badge info" }, fmtPct(p.ultimaPonderacion)) : null,
+      el(
+        "button",
+        {
+          class: "btn ghost small",
+          style: "margin-top:6px",
+          onclick: async (ev) => {
+            ev.stopPropagation();
+            if (!confirm(`¿Borrar el proveedor "${p.nombre}"? Las inspecciones, seguimientos, rutas o gastos ya registrados con él quedarán como "Proveedor eliminado". Esto no se puede deshacer.`)) return;
+            await store.deleteProveedor(p.id);
+            toast("Proveedor eliminado", "success");
+            renderNewChecklistPicker(root);
+          },
+        },
+        "🗑 Borrar"
+      ),
+    ]);
     card.appendChild(
       el(
         "div",
@@ -87,10 +105,7 @@ async function renderNewChecklistPicker(root) {
             renderWizard(root, cabecera.id);
           },
         },
-        [
-          el("div", {}, [el("div", { class: "title" }, p.nombre), el("div", { class: "sub" }, `${p.fruta} · ${p.ubicacion}`)]),
-          p.ultimaPonderacion != null ? el("div", { class: "badge info" }, fmtPct(p.ultimaPonderacion)) : null,
-        ]
+        [el("div", {}, [el("div", { class: "title" }, p.nombre), el("div", { class: "sub" }, `${p.fruta} · ${p.ubicacion}`)]), rt]
       )
     );
   });
