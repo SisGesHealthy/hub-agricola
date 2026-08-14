@@ -33,4 +33,13 @@ export const CONFIG = {
 
   // Debajo de esta ponderación (0-1) por categoría, el Check List se marca "Plan de Acción".
   ponderacionUmbral: 0.8,
+
+  // Quién aprueba un viaje en Gastos de Viaje, según su contenido: si el
+  // viaje es solo kilometraje (movilización propia), lo aprueba Talento
+  // Humano; cualquier otro tipo de gasto (hospedaje, alimentación, etc.)
+  // lo aprueba Compras. Ver store.computeAprobador().
+  approvers: {
+    kilometraje: "talentohumano@healthyfood.com.ec",
+    general: "compras@healthyfood.com.ec",
+  },
 };

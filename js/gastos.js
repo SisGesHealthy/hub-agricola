@@ -1,6 +1,8 @@
 import { el, clear } from "./dom.js";
 import * as store from "./store.js";
 import { capturePhoto, renderPhotoRow, SignaturePad, toast, fmtMoney } from "./components.js";
+import { getCurrentUser } from "./auth.js";
+import { CONFIG } from "./config.js";
 
 const estadoBadge = { Borrador: "info", Enviado: "warn", Aprobado: "ok", Revisado: "ok", Rechazado: "bad", Pagado: "ok" };
 const TIPOS_GASTO = ["Movilización propia (Km)", "Hospedaje", "Alimentación", "Atenciones", "Peaje", "Varios"];
@@ -34,6 +36,8 @@ async function renderGastoNuevo(root) {
   root.appendChild(el("h1", {}, "Nuevo viaje"));
 
   const card = el("div", { class: "card" });
+  const currentUser = getCurrentUser();
+  const viajero = el("input", { type: "text", placeholder: "Nombre del viajero", value: currentUser?.name || currentUser?.username || "" });
   const ciudadBase = el("input", { type: "text", placeholder: "Ej. Machachi", value: "Machachi" });
   const ciudadViaje = el("input", { type: "text", placeholder: "Ej. Los Ángeles - Categosín - Km 18" });
   const fechaInicio = el("input", { type: "date", value: new Date().toISOString().slice(0, 10) });
@@ -42,6 +46,8 @@ async function renderGastoNuevo(root) {
   const anticipo = el("input", { type: "number", placeholder: "0.00", step: "0.01" });
 
   card.append(
+    el("label", { class: "field-label" }, "Viajero"),
+    viajero,
     el("label", { class: "field-label" }, "Ciudad base"),
     ciudadBase,
     el("label", { class: "field-label" }, "Ciudad / ruta de viaje"),
@@ -86,6 +92,7 @@ async function renderGastoNuevo(root) {
           if (!ciudadViaje.value.trim()) return toast("Ingresa la ciudad o ruta de viaje", "error");
           const proveedoresVisitados = checks.filter((c) => c.checked).map((c) => c.value);
           const g = await store.createGasto({
+            viajero: viajero.value.trim(),
             ciudadBase: ciudadBase.value.trim(),
             ciudadViaje: ciudadViaje.value.trim(),
             fechaInicio: fechaInicio.value,
@@ -149,8 +156,9 @@ async function renderGastoDetalle(root, gastoId) {
           onclick: async () => {
             if (lineas.length === 0) return toast("Agrega al menos una línea de gasto", "error");
             if (pad.isEmpty()) return toast("Firma antes de enviar", "error");
-            await store.updateGasto({ ...cabecera, estado: "Enviado", firmaFecha: new Date().toISOString() });
-            toast("Gasto enviado a aprobación del jefe inmediato", "success");
+            const jefeInmediato = store.computeAprobador(lineas);
+            await store.updateGasto({ ...cabecera, estado: "Enviado", firmaFecha: new Date().toISOString(), jefeInmediato });
+            toast(`Gasto enviado a ${jefeInmediato} para aprobación`, "success");
             renderGastosHome(root);
           },
         },
@@ -162,41 +170,55 @@ async function renderGastoDetalle(root, gastoId) {
   }
 
   if (cabecera.estado === "Enviado") {
-    root.appendChild(el("div", { class: "section-title" }, "Aprobación del jefe inmediato"));
+    const currentUser = getCurrentUser();
+    const currentEmail = (currentUser?.username || "").toLowerCase();
+    const asignadoA = (cabecera.jefeInmediato || "").toLowerCase();
+    // En modo demo no hay sesión real de Microsoft, así que no se puede
+    // comparar cuenta contra cuenta — se deja pasar para poder probar.
+    const puedeAprobar = CONFIG.useMock || !asignadoA || currentEmail === asignadoA;
+
+    root.appendChild(el("div", { class: "section-title" }, "Aprobación"));
     root.appendChild(
-      el("div", { class: "hint" }, "En producción esto llega como aprobación de Microsoft Approvals; aquí, mientras se conecta, el jefe inmediato puede resolverlo desde este mismo celular.")
+      el("div", { class: "hint" }, `Asignado a: ${cabecera.jefeInmediato || "sin asignar"}. En producción esto también podría llegar como aprobación de Microsoft Approvals (Teams/correo); por ahora, la persona asignada lo resuelve desde este mismo celular.`)
     );
-    root.appendChild(
-      el(
-        "button",
-        {
-          class: "btn",
-          onclick: async () => {
-            await store.updateGasto({ ...cabecera, estado: "Aprobado" });
-            toast("Gasto aprobado", "success");
-            renderGastosHome(root);
+
+    if (puedeAprobar) {
+      root.appendChild(
+        el(
+          "button",
+          {
+            class: "btn",
+            onclick: async () => {
+              await store.updateGasto({ ...cabecera, estado: "Aprobado", revisor: currentUser?.username || currentUser?.name || "" });
+              toast("Gasto aprobado", "success");
+              renderGastosHome(root);
+            },
           },
-        },
-        "Aprobar"
-      )
-    );
-    root.appendChild(
-      el(
-        "button",
-        {
-          class: "btn danger",
-          style: "margin-top:8px",
-          onclick: async () => {
-            const motivo = prompt("Motivo del rechazo:");
-            if (!motivo) return;
-            await store.updateGasto({ ...cabecera, estado: "Rechazado", comentarioRechazo: motivo });
-            toast("Gasto rechazado", "success");
-            renderGastosHome(root);
+          "Aprobar"
+        )
+      );
+      root.appendChild(
+        el(
+          "button",
+          {
+            class: "btn danger",
+            style: "margin-top:8px",
+            onclick: async () => {
+              const motivo = prompt("Motivo del rechazo:");
+              if (!motivo) return;
+              await store.updateGasto({ ...cabecera, estado: "Rechazado", comentarioRechazo: motivo, revisor: currentUser?.username || currentUser?.name || "" });
+              toast("Gasto rechazado", "success");
+              renderGastosHome(root);
+            },
           },
-        },
-        "Rechazar"
-      )
-    );
+          "Rechazar"
+        )
+      );
+    } else {
+      root.appendChild(
+        el("div", { class: "hint" }, `Este gasto está asignado a ${cabecera.jefeInmediato} para aprobar. Tu cuenta (${currentUser?.username || "sin sesión"}) no coincide, así que no puedes aprobarlo o rechazarlo desde aquí.`)
+      );
+    }
   }
 
   if (cabecera.estado === "Rechazado") {

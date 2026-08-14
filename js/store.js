@@ -445,6 +445,16 @@ export function computeGastoTotales({ cabecera, lineas }) {
   return { total, valorADevolver };
 }
 
+// Decide quién debe aprobar el viaje según lo que contiene: si TODAS las
+// líneas son "Movilización propia (Km)" lo aprueba Talento Humano; si hay
+// cualquier otro tipo de gasto (hospedaje, alimentación, etc.) lo aprueba
+// Compras. Se recalcula cada vez que se envía a aprobación, por si las
+// líneas cambiaron desde el último envío.
+export function computeAprobador(lineas) {
+  const soloKm = lineas.length > 0 && lineas.every((l) => l.tipo === "Movilización propia (Km)");
+  return soloKm ? CONFIG.approvers.kilometraje : CONFIG.approvers.general;
+}
+
 // ---------------------------------------------------------------------------
 // Fotos y GPS (compartido por los 4 módulos)
 // ---------------------------------------------------------------------------
