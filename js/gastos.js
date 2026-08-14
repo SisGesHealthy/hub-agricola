@@ -257,7 +257,7 @@ async function renderLineaForm(root, cabecera) {
   const fecha = el("input", { type: "date", value: new Date().toISOString().slice(0, 10) });
   const lugar = el("input", { type: "text", placeholder: "Lugar" });
   const proveedorServicio = el("input", { type: "text", placeholder: "Proveedor de servicio (ej. hotel, restaurante)" });
-  const documento = el("input", { type: "text", placeholder: "N.º de documento / RUC" });
+  const documento = el("input", { type: "text", placeholder: "N.º de factura" });
   const todosProveedores = await store.listProveedores();
   const opcionesProveedor = cabecera.proveedoresVisitados?.length
     ? todosProveedores.filter((p) => cabecera.proveedoresVisitados.includes(p.id))
@@ -290,7 +290,7 @@ async function renderLineaForm(root, cabecera) {
     lugar,
     el("label", { class: "field-label" }, "Proveedor de servicio"),
     proveedorServicio,
-    el("label", { class: "field-label" }, "N.º documento / RUC"),
+    el("label", { class: "field-label" }, "N.º de factura"),
     documento,
     el("label", { class: "field-label" }, "Proveedor visitado en esta parada (opcional)"),
     proveedorSelect,
@@ -331,6 +331,7 @@ async function renderLineaForm(root, cabecera) {
         class: "btn",
         onclick: async () => {
           const isKm = tipoSelect.value === TIPOS_GASTO[0];
+          if (!isKm && !documento.value.trim()) return toast("Ingresa el N.º de factura", "error");
           if (!isKm && !photoId) return toast("Adjunta la foto de la factura o recibo", "error");
           await store.addGastoLinea(cabecera.id, {
             tipo: tipoSelect.value,
