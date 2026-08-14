@@ -168,8 +168,15 @@ export async function graphUpdateItemById(listKey, itemId, fields) {
 
 // Elimina un ítem cuando ya se conoce su identificador numérico real de
 // SharePoint (viene como _itemId en cualquier registro leído con graphGetItems).
+// Si el ítem ya no existe (404, p.ej. por un intento de borrado anterior que
+// quedó a medias) se considera cumplido el objetivo en vez de fallar, para
+// que el resto del borrado (cabecera + demás ítems) pueda completarse.
 export async function graphDeleteItemById(listKey, itemId) {
-  await graphFetch(`${listPath(listKey)}/items/${itemId}`, { method: "DELETE" });
+  try {
+    await graphFetch(`${listPath(listKey)}/items/${itemId}`, { method: "DELETE" });
+  } catch (e) {
+    if (!String(e.message).includes("-> 404:")) throw e;
+  }
 }
 
 // Busca el registro por nuestro "id" (guardado en Title) y lo actualiza —
