@@ -45,7 +45,7 @@ const FIELD_MAPS = {
     lat: "field_5", lng: "field_6", estado: "field_7", ultimaPonderacion: "field_8", createdAt: "field_9",
   },
   catalogoRequisitos: {
-    catName: "field_1", reqNum: "field_2", text: "field_3",
+    catName: "field_1", reqNum: "field_2", text: "field_3", activo: "activo",
   },
   checklistCabecera: {
     proveedorId: "field_1", auditor: "field_2", fecha: "field_3", estado: "field_4",
@@ -110,11 +110,16 @@ export function spFieldName(listKey, appKey) {
 function fromSharePointItem(listKey, it) {
   const rawFields = { ...it.fields };
   const id = rawFields.Title;
-  delete rawFields.Title;
   const reverseMap = REVERSE_FIELD_MAPS[listKey] || {};
+  // Graph siempre devuelve también decenas de columnas internas de SharePoint
+  // (LinkTitle, ContentType, Modified, Author, _ModerationStatus, etc.) junto
+  // con las de la app. Si se reenviaran tal cual en una escritura posterior,
+  // SharePoint las rechaza (varias son de solo lectura). Por eso aquí solo se
+  // conservan las columnas que están en el mapeo de esta lista — todo lo demás
+  // se descarta y nunca vuelve a formar parte de los datos de la app.
   const fields = {};
-  for (const [key, value] of Object.entries(rawFields)) {
-    fields[reverseMap[key] || key] = value;
+  for (const [spKey, appKey] of Object.entries(reverseMap)) {
+    if (spKey in rawFields) fields[appKey] = rawFields[spKey];
   }
   // _itemId es el identificador numérico real de SharePoint (necesario para
   // poder actualizar el registro después); no lo usa el resto de la app.
