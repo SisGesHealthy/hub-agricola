@@ -90,11 +90,17 @@ function toSharePointFields(listKey, fields) {
     out.Title = out.id;
     delete out.id;
   }
-  delete out._itemId;
   const map = FIELD_MAPS[listKey] || {};
   const mapped = {};
   for (const [key, value] of Object.entries(out)) {
-    mapped[map[key] || key] = value;
+    if (key === "Title") {
+      mapped.Title = value;
+    } else if (key in map) {
+      mapped[map[key]] = value;
+    }
+    // Cualquier otra clave (campos calculados solo para la UI, como
+    // "proveedor", o metadatos internos como "_itemId") se descarta en vez
+    // de reenviarse a SharePoint — no son columnas reales de esta lista.
   }
   return mapped;
 }
