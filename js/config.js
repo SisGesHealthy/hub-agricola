@@ -23,11 +23,8 @@ export const CONFIG = {
       rutaVisitas: "b4bba270-abc5-4824-8993-4b00d889ff27",
       gastosCabecera: "5dd1d7c9-3a83-4ef7-8334-d91b1729b1ba",
       gastosDetalle: "1749faa9-99ba-4aaa-bdd3-04db434fc915",
-      // Lista "Configuracion" (tarifa por Km editable por Talento Humano) —
-      // creala corriendo New-HubAgricolaLists.ps1 de nuevo (es seguro
-      // reejecutarlo) y pega aquí el GUID que te imprima al final. Mientras
-      // esté en null, la app usa el valor de respaldo "kmRate" de abajo.
-      configuracion: null,
+      // Lista "Configuracion" (tarifa por Km editable por Talento Humano).
+      configuracion: "6e3cc666-f22e-47b9-90f2-982dc2abf373",
     },
     // Nombre exacto de la biblioteca de documentos donde se suben las fotos y firmas.
     photoLibraryName: "Evidencias",
@@ -41,10 +38,9 @@ export const CONFIG = {
   // Debajo de esta ponderación (0-1) por categoría, el Check List se marca "Plan de Acción".
   ponderacionUmbral: 0.8,
 
-  // Quién aprueba un viaje en Gastos de Viaje, según su contenido: si el
-  // viaje es solo kilometraje (movilización propia), lo aprueba Talento
-  // Humano; cualquier otro tipo de gasto (hospedaje, alimentación, etc.)
-  // lo aprueba Compras. Ver store.computeAprobador().
+  // Quién aprueba cada línea de gasto según su tipo: kilometraje (movilización
+  // propia) lo aprueba Talento Humano; cualquier otro tipo (hospedaje,
+  // alimentación, etc.) lo aprueba Compras. Ver store.computeAprobadorLinea().
   approvers: {
     kilometraje: "talentohumano@healthyfood.com.ec",
     general: "compras@healthyfood.com.ec",
