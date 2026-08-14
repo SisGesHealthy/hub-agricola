@@ -3,8 +3,12 @@ import * as store from "./store.js";
 import { capturePhoto, renderPhotoRow, SignaturePad, toast, fmtMoney } from "./components.js";
 import { getCurrentUser } from "./auth.js";
 import { CONFIG } from "./config.js";
+import { buildGastoPdf, downloadPdf } from "./pdf.js";
 
 const estadoBadge = { Borrador: "info", Enviado: "warn", Aprobado: "ok", Revisado: "ok", Rechazado: "bad", Pagado: "ok" };
+// El PDF consolidado (para grapar facturas físicas) solo tiene sentido una
+// vez que el gasto ya pasó la aprobación — antes podría seguir cambiando.
+const ESTADOS_EXPORTABLES = ["Aprobado", "Revisado", "Pagado"];
 const TIPOS_GASTO = ["Movilización propia (Km)", "Hospedaje", "Alimentación", "Atenciones", "Peaje", "Varios"];
 
 export async function renderGastosHome(root) {
@@ -134,6 +138,24 @@ async function renderGastoDetalle(root, gastoId) {
     summary.appendChild(el("div", { class: "list-row" }, [el("div", {}, "Proveedores visitados"), el("div", { style: "text-align:right;max-width:60%" }, nombres || "-")]));
   }
   root.appendChild(summary);
+
+  if (ESTADOS_EXPORTABLES.includes(cabecera.estado)) {
+    root.appendChild(
+      el(
+        "button",
+        {
+          class: "btn secondary",
+          onclick: async () => {
+            const blob = await buildGastoPdf({ cabecera, lineas, provById, totales });
+            downloadPdf(blob, `Gastos_${cabecera.viajero || "viaje"}_${cabecera.fechaInicio}.pdf`);
+          },
+        },
+        "Descargar PDF consolidado"
+      )
+    );
+    root.appendChild(el("div", { class: "hint" }, "Imprime este PDF y adjunta detrás las facturas físicas de cada línea."));
+    root.appendChild(el("div", { style: "height:10px" }));
+  }
 
   root.appendChild(el("div", { class: "section-title" }, "Líneas de gasto"));
   lineas.forEach((l) => root.appendChild(renderLineaCard(l, provById)));

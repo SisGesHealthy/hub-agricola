@@ -98,6 +98,83 @@ export async function buildChecklistPdf({ cabecera, items, proveedor, scoring })
   return doc.output("blob");
 }
 
+// PDF consolidado de un viaje de Gastos de Viaje: encabezado del viaje +
+// tabla de todas las líneas + totales. Pensado para imprimirse y grapar las
+// facturas físicas detrás — solo tiene sentido una vez que el gasto ya fue
+// aprobado (ver el botón en gastos.js, que lo restringe a ese estado).
+export async function buildGastoPdf({ cabecera, lineas, provById = {}, totales }) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: "pt", format: "letter" });
+  const margin = 40;
+  let y = margin;
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(15);
+  doc.text("LIQUIDACIÓN DE GASTOS DE VIAJE", margin, y);
+  y += 18;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10.5);
+  doc.text(`Viajero: ${cabecera.viajero || "-"}    Ciudad base: ${cabecera.ciudadBase || "-"}`, margin, y);
+  y += 14;
+  doc.text(`Ruta / ciudad de viaje: ${cabecera.ciudadViaje || "-"}`, margin, y);
+  y += 14;
+  doc.text(`Del ${cabecera.fechaInicio || "-"} al ${cabecera.fechaFin || "-"}    Motivo: ${cabecera.motivo || "-"}`, margin, y);
+  y += 14;
+  const nombresProv = (cabecera.proveedoresVisitados || []).map((id) => provById[id]?.nombre).filter(Boolean).join(", ");
+  if (nombresProv) {
+    doc.text(`Proveedores visitados: ${nombresProv}`, margin, y);
+    y += 14;
+  }
+  doc.text(`Estado: ${cabecera.estado || "-"}    Aprobado por: ${cabecera.revisor || cabecera.jefeInmediato || "-"}`, margin, y);
+  y += 20;
+
+  doc.autoTable({
+    startY: y,
+    margin: { left: margin, right: margin },
+    head: [["Fecha", "Tipo", "Lugar", "Proveedor/Servicio", "N.º factura", "Proveedor visitado", "Km", "Monto"]],
+    body: lineas.map((l) => [
+      l.fecha || "",
+      l.tipo || "",
+      l.lugar || "",
+      l.proveedorServicio || "",
+      l.documento || "",
+      l.proveedorId ? provById[l.proveedorId]?.nombre || "" : "",
+      l.tipo === "Movilización propia (Km)" ? `${l.kmInicio ?? ""} → ${l.kmFinal ?? ""}` : "",
+      `$${Number(l.monto || 0).toFixed(2)}`,
+    ]),
+    styles: { fontSize: 7.5, cellPadding: 3, overflow: "linebreak" },
+    headStyles: { fillColor: [31, 78, 61] },
+  });
+  y = doc.lastAutoTable.finalY + 18;
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10.5);
+  doc.text(`Total gastos: $${totales.total.toFixed(2)}`, margin, y);
+  y += 14;
+  doc.text(`Anticipo recibido: $${Number(cabecera.anticipo || 0).toFixed(2)}    Saldo anterior: $${Number(cabecera.saldoAnterior || 0).toFixed(2)}`, margin, y);
+  y += 14;
+  doc.text(
+    totales.valorADevolver >= 0
+      ? `La empresa reembolsa: $${totales.valorADevolver.toFixed(2)}`
+      : `El viajero devuelve: $${Math.abs(totales.valorADevolver).toFixed(2)}`,
+    margin,
+    y
+  );
+  y += 26;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9.5);
+  doc.text(
+    `Firmado electrónicamente por ${cabecera.viajero || "-"} el ${cabecera.firmaFecha ? new Date(cabecera.firmaFecha).toLocaleString("es-EC") : "-"}.`,
+    margin,
+    y
+  );
+  y += 14;
+  doc.text("Adjuntar a este documento las facturas físicas originales de cada línea de gasto.", margin, y);
+
+  return doc.output("blob");
+}
+
 export function downloadPdf(blob, filename) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
