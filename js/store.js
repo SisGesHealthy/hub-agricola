@@ -591,3 +591,16 @@ export async function setKmRate(value) {
 // Fotos y GPS (compartido por los 4 módulos)
 // ---------------------------------------------------------------------------
 export { savePhotoBlob, getPhotoUrl };
+
+// Descarga el contenido real de una foto para incrustarla en un PDF (ver
+// pdf.js). Si photoId es una referencia local (blob recién capturado,
+// todavía no subido) se lee de IndexedDB; si ya es la URL real de
+// SharePoint, se descarga vía Graph — un fetch directo a esa URL falla por
+// CORS/autenticación desde este origen.
+export async function getPhotoBlobForExport(photoId) {
+  if (!photoId) return null;
+  if (typeof photoId === "string" && photoId.startsWith("http")) {
+    return graph.graphDownloadPhoto(photoId).catch(() => null);
+  }
+  return getPhotoBlob(photoId);
+}

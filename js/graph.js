@@ -248,3 +248,18 @@ export async function graphUploadPhoto(blob, filename) {
   const data = await res.json();
   return data.webUrl;
 }
+
+// Descarga el contenido real de una foto ya subida (identificada por su
+// webUrl de SharePoint) para poder incrustarla en un PDF. Un fetch directo a
+// esa URL falla por CORS/autenticación desde este origen (GitHub Pages no es
+// el mismo dominio que SharePoint); la API de "shares" de Graph sí soporta
+// CORS con el mismo token Bearer que usa el resto de la app.
+export async function graphDownloadPhoto(webUrl) {
+  const token = await getAccessToken();
+  const encoded = "u!" + btoa(webUrl).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  const res = await fetch(`${GRAPH_BASE}/shares/${encoded}/driveItem/content`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error(`No se pudo descargar la foto (${res.status})`);
+  return res.blob();
+}

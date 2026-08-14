@@ -1,27 +1,14 @@
 // Generación del PDF de la inspección (Check List), usando jsPDF + autotable
 // (vendored en vendor/, sin dependencia de CDN). Expuestos como window.jspdf.
-import { getPhotoUrl } from "./store.js";
+import { getPhotoBlobForExport } from "./store.js";
 import { fmtPct } from "./components.js";
 
-async function blobUrlToDataUrl(url) {
-  const res = await fetch(url);
-  const blob = await res.blob();
+function blobToDataUrl(blob) {
   return new Promise((resolve) => {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result);
     reader.readAsDataURL(blob);
   });
-}
-
-// Un photoId puede ser una referencia local (blob en IndexedDB, foto recién
-// tomada) o, para registros ya guardados en producción, la URL real de
-// SharePoint (resolvePhotoField ya la subió antes de escribir el registro).
-// getPhotoUrl solo sabe resolver la primera; para la segunda basta con
-// devolverla tal cual — fetch() funciona igual sobre blob: y https:.
-async function resolvePhotoUrl(photoId) {
-  if (!photoId) return null;
-  if (typeof photoId === "string" && photoId.startsWith("http")) return photoId;
-  return getPhotoUrl(photoId);
 }
 
 function imageFormatFromDataUrl(dataUrl) {
@@ -104,12 +91,12 @@ export async function buildChecklistPdf({ cabecera, items, proveedor, scoring })
   doc.text("Firma del productor", margin, sigY);
   doc.text("Firma del auditor", margin + 280, sigY);
   if (cabecera.firmaProductorPhotoId) {
-    const url = await resolvePhotoUrl(cabecera.firmaProductorPhotoId);
-    if (url) doc.addImage(await blobUrlToDataUrl(url), "PNG", margin, sigY + 8, 200, 70);
+    const blob = await getPhotoBlobForExport(cabecera.firmaProductorPhotoId);
+    if (blob) doc.addImage(await blobToDataUrl(blob), "PNG", margin, sigY + 8, 200, 70);
   }
   if (cabecera.firmaAuditorPhotoId) {
-    const url = await resolvePhotoUrl(cabecera.firmaAuditorPhotoId);
-    if (url) doc.addImage(await blobUrlToDataUrl(url), "PNG", margin + 280, sigY + 8, 200, 70);
+    const blob = await getPhotoBlobForExport(cabecera.firmaAuditorPhotoId);
+    if (blob) doc.addImage(await blobToDataUrl(blob), "PNG", margin + 280, sigY + 8, 200, 70);
   }
 
   return doc.output("blob");
@@ -269,10 +256,10 @@ export async function buildSeguimientoPdf({ seguimiento, proveedor }) {
     y += 10;
     const size = 120;
     for (let i = 0; i < photoIds.length; i++) {
-      const url = await resolvePhotoUrl(photoIds[i]);
-      if (!url) continue;
+      const blob = await getPhotoBlobForExport(photoIds[i]);
+      if (!blob) continue;
       try {
-        const dataUrl = await blobUrlToDataUrl(url);
+        const dataUrl = await blobToDataUrl(blob);
         doc.addImage(dataUrl, imageFormatFromDataUrl(dataUrl), margin + i * (size + 10), y, size, size);
       } catch {
         // Foto no disponible (ej. sin conexión); se omite en vez de romper el PDF.
