@@ -13,6 +13,23 @@ async function blobUrlToDataUrl(url) {
   });
 }
 
+// Un photoId puede ser una referencia local (blob en IndexedDB, foto recién
+// tomada) o, para registros ya guardados en producción, la URL real de
+// SharePoint (resolvePhotoField ya la subió antes de escribir el registro).
+// getPhotoUrl solo sabe resolver la primera; para la segunda basta con
+// devolverla tal cual — fetch() funciona igual sobre blob: y https:.
+async function resolvePhotoUrl(photoId) {
+  if (!photoId) return null;
+  if (typeof photoId === "string" && photoId.startsWith("http")) return photoId;
+  return getPhotoUrl(photoId);
+}
+
+function imageFormatFromDataUrl(dataUrl) {
+  const m = /^data:image\/(png|jpe?g)/i.exec(dataUrl);
+  if (!m) return "JPEG";
+  return m[1].toLowerCase() === "png" ? "PNG" : "JPEG";
+}
+
 export async function buildChecklistPdf({ cabecera, items, proveedor, scoring }) {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit: "pt", format: "letter" });
@@ -87,11 +104,11 @@ export async function buildChecklistPdf({ cabecera, items, proveedor, scoring })
   doc.text("Firma del productor", margin, sigY);
   doc.text("Firma del auditor", margin + 280, sigY);
   if (cabecera.firmaProductorPhotoId) {
-    const url = await getPhotoUrl(cabecera.firmaProductorPhotoId);
+    const url = await resolvePhotoUrl(cabecera.firmaProductorPhotoId);
     if (url) doc.addImage(await blobUrlToDataUrl(url), "PNG", margin, sigY + 8, 200, 70);
   }
   if (cabecera.firmaAuditorPhotoId) {
-    const url = await getPhotoUrl(cabecera.firmaAuditorPhotoId);
+    const url = await resolvePhotoUrl(cabecera.firmaAuditorPhotoId);
     if (url) doc.addImage(await blobUrlToDataUrl(url), "PNG", margin + 280, sigY + 8, 200, 70);
   }
 
@@ -184,6 +201,134 @@ export async function buildGastoPdf({ cabecera, lineas, provById = {}, totales }
   );
   y += 14;
   doc.text("Adjuntar a este documento las facturas físicas originales de cada línea de gasto.", margin, y);
+
+  return doc.output("blob");
+}
+
+// Ficha individual de un Seguimiento Semanal — para imprimir/archivar esa
+// visita puntual, igual que el PDF del Check List.
+export async function buildSeguimientoPdf({ seguimiento, proveedor }) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: "pt", format: "letter" });
+  const margin = 40;
+  const contentWidth = 612 - margin * 2;
+  let y = margin;
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(15);
+  doc.text("SEGUIMIENTO SEMANAL", margin, y);
+  y += 18;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10.5);
+  doc.text(`Proveedor: ${proveedor?.nombre || "-"}    Fruta: ${proveedor?.fruta || "-"}    Ubicación: ${proveedor?.ubicacion || "-"}`, margin, y);
+  y += 14;
+  doc.text(`Fecha: ${(seguimiento.fecha || "-").slice(0, 10)}    Semana: ${seguimiento.semana ?? "-"}    Tipo de contacto: ${seguimiento.tipo || "-"}`, margin, y);
+  y += 14;
+  doc.text(
+    `Estado de cumplimiento: ${seguimiento.estado || "-"}    Fecha máx. cumplimiento: ${(seguimiento.fechaMaxCumplimiento || "-").slice(0, 10)}`,
+    margin,
+    y
+  );
+  y += 22;
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.text("Novedades", margin, y);
+  y += 14;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9.5);
+  const novedadesLines = doc.splitTextToSize(seguimiento.novedades || "-", contentWidth);
+  doc.text(novedadesLines, margin, y);
+  y += novedadesLines.length * 12 + 16;
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.text("Recomendaciones", margin, y);
+  y += 14;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9.5);
+  const recoLines = doc.splitTextToSize(seguimiento.recomendaciones || "-", contentWidth);
+  doc.text(recoLines, margin, y);
+  y += recoLines.length * 12 + 16;
+
+  if (seguimiento.coords?.lat != null && seguimiento.coords?.lng != null) {
+    doc.setFontSize(9.5);
+    doc.text(`Ubicación GPS: ${Number(seguimiento.coords.lat).toFixed(5)}, ${Number(seguimiento.coords.lng).toFixed(5)}`, margin, y);
+    y += 18;
+  }
+
+  const photoIds = (seguimiento.photoIds || []).filter(Boolean).slice(0, 4);
+  if (photoIds.length) {
+    if (y > 560) {
+      doc.addPage();
+      y = margin;
+    }
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text("Evidencia fotográfica", margin, y);
+    y += 10;
+    const size = 120;
+    for (let i = 0; i < photoIds.length; i++) {
+      const url = await resolvePhotoUrl(photoIds[i]);
+      if (!url) continue;
+      try {
+        const dataUrl = await blobUrlToDataUrl(url);
+        doc.addImage(dataUrl, imageFormatFromDataUrl(dataUrl), margin + i * (size + 10), y, size, size);
+      } catch {
+        // Foto no disponible (ej. sin conexión); se omite en vez de romper el PDF.
+      }
+    }
+    y += size + 10;
+  }
+
+  return doc.output("blob");
+}
+
+// Reporte consolidado de varios Seguimientos Semanales (según el filtro de
+// fecha/proveedor que se haya aplicado en la pantalla) — una tabla resumen,
+// no ficha por ficha.
+export async function buildSeguimientosReportePdf({ seguimientos, provById = {}, desde, hasta, proveedorNombre }) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: "pt", format: "letter" });
+  const margin = 40;
+  let y = margin;
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(15);
+  doc.text("REPORTE DE SEGUIMIENTO SEMANAL", margin, y);
+  y += 18;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10.5);
+  doc.text(
+    `Rango de fechas: ${desde || "inicio"} a ${hasta || "hoy"}    Proveedor: ${proveedorNombre || "Todos"}    Total registros: ${seguimientos.length}`,
+    margin,
+    y
+  );
+  y += 20;
+
+  doc.autoTable({
+    startY: y,
+    margin: { left: margin, right: margin },
+    head: [["Fecha", "Proveedor", "Tipo", "Estado", "Novedades", "Fecha máx."]],
+    body: seguimientos.map((s) => [
+      (s.fecha || "").slice(0, 10),
+      provById[s.proveedorId]?.nombre || "-",
+      s.tipo || "-",
+      s.estado || "-",
+      s.novedades || "",
+      (s.fechaMaxCumplimiento || "").slice(0, 10),
+    ]),
+    styles: { fontSize: 7.5, cellPadding: 4, overflow: "linebreak" },
+    headStyles: { fillColor: [31, 78, 61] },
+    columnStyles: {
+      0: { cellWidth: 55 },
+      1: { cellWidth: 100 },
+      2: { cellWidth: 65 },
+      3: { cellWidth: 65 },
+      4: { cellWidth: 170 },
+      5: { cellWidth: 60 },
+    },
+  });
 
   return doc.output("blob");
 }

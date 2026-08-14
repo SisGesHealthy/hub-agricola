@@ -1,6 +1,7 @@
 import { el, clear } from "./dom.js";
 import * as store from "./store.js";
 import { capturePhoto, renderPhotoRow, captureLocation, renderGpsBox, toast } from "./components.js";
+import { buildSeguimientoPdf, buildSeguimientosReportePdf, downloadPdf } from "./pdf.js";
 
 const estadoBadge = { Cumplido: "ok", "En proceso": "warn", Incumplido: "bad" };
 
@@ -10,24 +11,95 @@ export async function renderSeguimientoHome(root) {
   root.appendChild(el("button", { class: "btn", onclick: () => renderSeguimientoForm(root) }, "+ Nuevo seguimiento"));
 
   const list = await store.listSeguimientos();
-  root.appendChild(el("div", { class: "section-title" }, "Registros recientes"));
   if (list.length === 0) {
+    root.appendChild(el("div", { class: "section-title" }, "Registros recientes"));
     root.appendChild(el("div", { class: "empty-state" }, "Sin seguimientos registrados todavía."));
     return;
   }
-  const card = el("div", { class: "card" });
-  list.forEach((s) => {
-    card.appendChild(
-      el("div", { class: "list-row", onclick: () => renderSeguimientoForm(root, s) }, [
-        el("div", {}, [
-          el("div", { class: "title" }, s.proveedor?.nombre || "Proveedor eliminado"),
-          el("div", { class: "sub" }, `Semana ${s.semana} · ${s.fecha} · ${s.tipo || ""}`),
-        ]),
-        el("span", { class: `badge ${estadoBadge[s.estado] || "info"}` }, s.estado || "Sin estado"),
-      ])
+
+  const proveedores = await store.listProveedores();
+  const provById = Object.fromEntries(proveedores.map((p) => [p.id, p]));
+
+  const filterCard = el("div", { class: "card" });
+  const proveedorFilter = el("select", {}, [
+    el("option", { value: "" }, "Todos los proveedores"),
+    ...proveedores.map((p) => el("option", { value: p.id }, p.nombre)),
+  ]);
+  const desde = el("input", { type: "date" });
+  const hasta = el("input", { type: "date" });
+  filterCard.append(
+    el("label", { class: "field-label", style: "margin-top:0" }, "Filtrar por proveedor"),
+    proveedorFilter,
+    el("div", { class: "grid-2" }, [
+      el("div", {}, [el("label", { class: "field-label" }, "Desde"), desde]),
+      el("div", {}, [el("label", { class: "field-label" }, "Hasta"), hasta]),
+    ])
+  );
+  root.appendChild(filterCard);
+
+  const resultsSection = el("div");
+  root.appendChild(resultsSection);
+
+  function applyFilters() {
+    return list.filter((s) => {
+      if (proveedorFilter.value && s.proveedorId !== proveedorFilter.value) return false;
+      const fecha = (s.fecha || "").slice(0, 10);
+      if (desde.value && fecha < desde.value) return false;
+      if (hasta.value && fecha > hasta.value) return false;
+      return true;
+    });
+  }
+
+  function renderResults() {
+    clear(resultsSection);
+    const filtered = applyFilters();
+    resultsSection.appendChild(el("div", { class: "section-title" }, `Registros (${filtered.length})`));
+
+    if (filtered.length === 0) {
+      resultsSection.appendChild(el("div", { class: "empty-state" }, "No hay seguimientos que coincidan con el filtro."));
+      return;
+    }
+
+    resultsSection.appendChild(
+      el(
+        "button",
+        {
+          class: "btn secondary",
+          onclick: async () => {
+            const blob = await buildSeguimientosReportePdf({
+              seguimientos: filtered,
+              provById,
+              desde: desde.value,
+              hasta: hasta.value,
+              proveedorNombre: proveedorFilter.value ? provById[proveedorFilter.value]?.nombre : null,
+            });
+            downloadPdf(blob, `Seguimiento_Reporte_${new Date().toISOString().slice(0, 10)}.pdf`);
+          },
+        },
+        "Descargar PDF consolidado"
+      )
     );
-  });
-  root.appendChild(card);
+    resultsSection.appendChild(el("div", { style: "height:10px" }));
+
+    const card = el("div", { class: "card" });
+    filtered.forEach((s) => {
+      card.appendChild(
+        el("div", { class: "list-row", onclick: () => renderSeguimientoForm(root, s) }, [
+          el("div", {}, [
+            el("div", { class: "title" }, s.proveedor?.nombre || "Proveedor eliminado"),
+            el("div", { class: "sub" }, `Semana ${s.semana} · ${s.fecha} · ${s.tipo || ""}`),
+          ]),
+          el("span", { class: `badge ${estadoBadge[s.estado] || "info"}` }, s.estado || "Sin estado"),
+        ])
+      );
+    });
+    resultsSection.appendChild(card);
+  }
+
+  proveedorFilter.addEventListener("change", renderResults);
+  desde.addEventListener("change", renderResults);
+  hasta.addEventListener("change", renderResults);
+  renderResults();
 }
 
 async function renderSeguimientoForm(root, existing = null) {
@@ -36,6 +108,23 @@ async function renderSeguimientoForm(root, existing = null) {
     el("div", { class: "top-actions" }, [el("button", { class: "back-btn", onclick: () => renderSeguimientoHome(root) }, "‹ Volver")])
   );
   root.appendChild(el("h1", {}, existing ? "Editar seguimiento" : "Nuevo seguimiento"));
+
+  if (existing) {
+    root.appendChild(
+      el(
+        "button",
+        {
+          class: "btn secondary",
+          style: "margin-bottom:10px",
+          onclick: async () => {
+            const blob = await buildSeguimientoPdf({ seguimiento: existing, proveedor: existing.proveedor });
+            downloadPdf(blob, `Seguimiento_${existing.proveedor?.nombre || "proveedor"}_${(existing.fecha || "").slice(0, 10)}.pdf`);
+          },
+        },
+        "Descargar PDF"
+      )
+    );
+  }
 
   const proveedores = await store.listProveedores();
   const card = el("div", { class: "card" });
