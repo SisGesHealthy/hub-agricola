@@ -261,6 +261,12 @@ async function renderGastoDetalle(root, gastoId) {
           el("span", { class: `badge ${estadoLinea === "Aprobado" ? "ok" : estadoLinea === "Rechazado" ? "bad" : "warn"}` }, estadoLinea),
         ]),
       ]);
+      if (l.tipo === "Movilización propia (Km)") {
+        const kmTotal = Number(l.kmFinal || 0) - Number(l.kmInicio || 0);
+        lineaCard.appendChild(
+          el("div", { class: "hint" }, `Km inicio: ${l.kmInicio ?? "-"} · Km final: ${l.kmFinal ?? "-"} · Total: ${kmTotal} km`)
+        );
+      }
 
       if (puedeRevisar) {
         const btnRow = el("div", { class: "btn-row", style: "margin-top:8px" });
