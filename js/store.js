@@ -217,6 +217,22 @@ export async function getChecklist(checklistId) {
   return { cabecera, items, proveedor };
 }
 
+// Solo se permite borrar inspecciones en Borrador (nunca las ya enviadas/OK) —
+// eso se valida en la UI antes de llamar a esto. Borra la cabecera y sus
+// ~96 ítems asociados.
+export async function deleteChecklist(checklistId) {
+  const { cabecera, items } = await getChecklist(checklistId);
+  if (CONFIG.useMock) {
+    if (cabecera) await idb.delete("checklistCab", checklistId);
+    for (const it of items) await idb.delete("checklistItems", it.id);
+  } else {
+    for (const it of items) {
+      if (it._itemId) await graph.graphDeleteItemById("checklistItems", it._itemId);
+    }
+    if (cabecera?._itemId) await graph.graphDeleteItemById("checklistCabecera", cabecera._itemId);
+  }
+}
+
 export async function updateChecklistItem(item) {
   if (CONFIG.useMock) {
     await idb.put("checklistItems", item);

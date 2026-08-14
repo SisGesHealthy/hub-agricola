@@ -26,6 +26,29 @@ export async function renderChecklistHome(root) {
         : c.accionGlobal === "OK"
         ? el("span", { class: "badge ok" }, "OK")
         : el("span", { class: "badge bad" }, "Plan de acción");
+    const rt = el("div", { class: "rt" }, [
+      badge,
+      c.ponderacionTotal != null ? el("div", { class: "sub" }, fmtPct(c.ponderacionTotal)) : null,
+    ]);
+    if (c.estado === "Borrador") {
+      rt.appendChild(
+        el(
+          "button",
+          {
+            class: "btn ghost small",
+            style: "margin-top:6px",
+            onclick: async (ev) => {
+              ev.stopPropagation();
+              if (!confirm(`¿Borrar el borrador de "${c.proveedor?.nombre || "este proveedor"}"? Esto no se puede deshacer.`)) return;
+              await store.deleteChecklist(c.id);
+              toast("Borrador eliminado", "success");
+              renderChecklistHome(root);
+            },
+          },
+          "🗑 Borrar"
+        )
+      );
+    }
     const row = el(
       "div",
       { class: "list-row", onclick: () => (c.estado === "Borrador" ? renderWizard(root, c.id) : renderSummary(root, c.id, { readonly: true })) },
@@ -34,10 +57,7 @@ export async function renderChecklistHome(root) {
           el("div", { class: "title" }, c.proveedor?.nombre || "Proveedor eliminado"),
           el("div", { class: "sub" }, `${c.fecha}  ·  ${c.auditor || ""}`),
         ]),
-        el("div", { class: "rt" }, [
-          badge,
-          c.ponderacionTotal != null ? el("div", { class: "sub" }, fmtPct(c.ponderacionTotal)) : null,
-        ]),
+        rt,
       ]
     );
     card.appendChild(row);

@@ -166,6 +166,12 @@ export async function graphUpdateItemById(listKey, itemId, fields) {
   return { ...fields, _itemId: itemId };
 }
 
+// Elimina un ítem cuando ya se conoce su identificador numérico real de
+// SharePoint (viene como _itemId en cualquier registro leído con graphGetItems).
+export async function graphDeleteItemById(listKey, itemId) {
+  await graphFetch(`${listPath(listKey)}/items/${itemId}`, { method: "DELETE" });
+}
+
 // Busca el registro por nuestro "id" (guardado en Title) y lo actualiza —
 // para cuando no se tiene _itemId a mano (ej. se llegó por otra vía y no se
 // cargó el registro completo primero).
