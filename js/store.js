@@ -456,7 +456,16 @@ export async function addGastoLinea(gastoId, fields) {
     const kmTotal = Number(fields.kmFinal || 0) - Number(fields.kmInicio || 0);
     monto = Math.max(0, kmTotal) * CONFIG.kmRate;
   }
-  const rec = { ...fields, id, gastoId, monto };
+  const rec = {
+    ...fields,
+    id,
+    gastoId,
+    monto,
+    // Columna Number en SharePoint: "" (línea sin kilometraje) la rechaza
+    // con 400 badArgument; hay que mandar null, no texto vacío.
+    kmInicio: fields.kmInicio === "" || fields.kmInicio == null ? null : Number(fields.kmInicio),
+    kmFinal: fields.kmFinal === "" || fields.kmFinal == null ? null : Number(fields.kmFinal),
+  };
   if (CONFIG.useMock) {
     await idb.put("gastosDet", rec);
   } else {
