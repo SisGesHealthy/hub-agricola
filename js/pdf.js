@@ -118,7 +118,7 @@ export async function buildGastoPdf({ cabecera, lineas, provById = {}, totales }
   y += 14;
   doc.text(`Ruta / ciudad de viaje: ${cabecera.ciudadViaje || "-"}`, margin, y);
   y += 14;
-  doc.text(`Del ${cabecera.fechaInicio || "-"} al ${cabecera.fechaFin || "-"}    Motivo: ${cabecera.motivo || "-"}`, margin, y);
+  doc.text(`Del ${(cabecera.fechaInicio || "-").slice(0, 10)} al ${(cabecera.fechaFin || "-").slice(0, 10)}    Motivo: ${cabecera.motivo || "-"}`, margin, y);
   y += 14;
   const nombresProv = (cabecera.proveedoresVisitados || []).map((id) => provById[id]?.nombre).filter(Boolean).join(", ");
   if (nombresProv) {
@@ -133,17 +133,29 @@ export async function buildGastoPdf({ cabecera, lineas, provById = {}, totales }
     margin: { left: margin, right: margin },
     head: [["Fecha", "Tipo", "Lugar", "Proveedor/Servicio", "N.º factura", "Proveedor visitado", "Km", "Monto"]],
     body: lineas.map((l) => [
-      l.fecha || "",
+      (l.fecha || "").slice(0, 10),
       l.tipo || "",
       l.lugar || "",
       l.proveedorServicio || "",
       l.documento || "",
       l.proveedorId ? provById[l.proveedorId]?.nombre || "" : "",
-      l.tipo === "Movilización propia (Km)" ? `${l.kmInicio ?? ""} → ${l.kmFinal ?? ""}` : "",
+      // "→" no existe en la fuente estándar de jsPDF (Helvetica/WinAnsi) y sale
+      // corrupto en el PDF; se usa un guion simple en su lugar.
+      l.tipo === "Movilización propia (Km)" ? `${l.kmInicio ?? ""} - ${l.kmFinal ?? ""}` : "",
       `$${Number(l.monto || 0).toFixed(2)}`,
     ]),
-    styles: { fontSize: 7.5, cellPadding: 3, overflow: "linebreak" },
-    headStyles: { fillColor: [31, 78, 61] },
+    styles: { fontSize: 7.5, cellPadding: 4, overflow: "linebreak", valign: "middle" },
+    headStyles: { fillColor: [31, 78, 61], fontSize: 7.5 },
+    columnStyles: {
+      0: { cellWidth: 52 },
+      1: { cellWidth: 78 },
+      2: { cellWidth: 68 },
+      3: { cellWidth: 85 },
+      4: { cellWidth: 62 },
+      5: { cellWidth: 80 },
+      6: { cellWidth: 55 },
+      7: { cellWidth: 52, halign: "right" },
+    },
   });
   y = doc.lastAutoTable.finalY + 18;
 
