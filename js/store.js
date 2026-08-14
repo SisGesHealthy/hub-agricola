@@ -454,13 +454,16 @@ export async function addGastoLinea(gastoId, fields) {
   let monto = Number(fields.monto || 0);
   if (fields.tipo === "Movilización propia (Km)") {
     const kmTotal = Number(fields.kmFinal || 0) - Number(fields.kmInicio || 0);
-    monto = Math.max(0, kmTotal) * CONFIG.kmRate;
+    monto = Math.max(0, kmTotal) * (await getKmRate());
   }
   const rec = {
     ...fields,
     id,
     gastoId,
     monto,
+    // Cada línea se aprueba por separado (ver reviewGastoLinea) — una nueva
+    // línea, o una que se está editando, vuelve a quedar Pendiente.
+    estadoLinea: fields.estadoLinea || "Pendiente",
     // Columna Number en SharePoint: "" (línea sin kilometraje) la rechaza
     // con 400 badArgument; hay que mandar null, no texto vacío.
     kmInicio: fields.kmInicio === "" || fields.kmInicio == null ? null : Number(fields.kmInicio),
@@ -477,20 +480,111 @@ export async function addGastoLinea(gastoId, fields) {
   return rec;
 }
 
+// Solo se permite borrar una línea mientras el viaje sigue en Borrador (se
+// valida en la UI). Usa el registro tal como lo devuelve getGasto (trae _itemId).
+export async function deleteGastoLinea(linea) {
+  if (CONFIG.useMock) {
+    await idb.delete("gastosDet", linea.id);
+    return;
+  }
+  if (linea._itemId) await graph.graphDeleteItemById("gastosDetalle", linea._itemId);
+}
+
 export function computeGastoTotales({ cabecera, lineas }) {
   const total = lineas.reduce((s, l) => s + Number(l.monto || 0), 0);
   const valorADevolver = Number(cabecera.anticipo || 0) + Number(cabecera.saldoAnterior || 0) - total;
   return { total, valorADevolver };
 }
 
-// Decide quién debe aprobar el viaje según lo que contiene: si TODAS las
-// líneas son "Movilización propia (Km)" lo aprueba Talento Humano; si hay
-// cualquier otro tipo de gasto (hospedaje, alimentación, etc.) lo aprueba
-// Compras. Se recalcula cada vez que se envía a aprobación, por si las
-// líneas cambiaron desde el último envío.
-export function computeAprobador(lineas) {
-  const soloKm = lineas.length > 0 && lineas.every((l) => l.tipo === "Movilización propia (Km)");
-  return soloKm ? CONFIG.approvers.kilometraje : CONFIG.approvers.general;
+// Quién debe aprobar una línea según su tipo: el kilometraje siempre lo
+// aprueba Talento Humano (sin importar qué más traiga el viaje); cualquier
+// otro tipo de gasto (hospedaje, alimentación, etc.) lo aprueba Compras.
+export function computeAprobadorLinea(tipo) {
+  return tipo === "Movilización propia (Km)" ? CONFIG.approvers.kilometraje : CONFIG.approvers.general;
+}
+
+async function patchGastoLinea(linea, patch) {
+  if (CONFIG.useMock) {
+    await idb.put("gastosDet", { ...linea, ...patch });
+  } else if (linea._itemId) {
+    await graph.graphUpdateItemById("gastosDetalle", linea._itemId, toGraphFields(patch));
+  } else {
+    await graph.graphUpdateItemByAppId("gastosDetalle", linea.id, toGraphFields({ ...patch, id: linea.id }));
+  }
+}
+
+// Aprueba o rechaza UNA línea (no todo el viaje) y recalcula el estado del
+// viaje completo: queda Aprobado solo cuando TODAS las líneas están
+// Aprobadas; en cuanto UNA se rechaza, el viaje entero pasa a Rechazado (el
+// viajero corrige y reenvía todo el viaje — ver submitGasto, que resetea
+// todas las líneas a Pendiente). Mientras haya líneas sin resolver, sigue Enviado.
+export async function reviewGastoLinea(gastoId, linea, decision, { comentario = "", revisor = "" } = {}) {
+  await patchGastoLinea(linea, {
+    estadoLinea: decision,
+    revisorLinea: revisor,
+    comentarioLinea: decision === "Rechazado" ? comentario : "",
+  });
+
+  const { cabecera, lineas } = await getGasto(gastoId);
+  let estado = cabecera.estado;
+  let comentarioRechazo = cabecera.comentarioRechazo || "";
+  const rechazadas = lineas.filter((l) => l.estadoLinea === "Rechazado");
+  if (rechazadas.length > 0) {
+    estado = "Rechazado";
+    comentarioRechazo = rechazadas.map((l) => `${l.tipo}: ${l.comentarioLinea || "sin motivo"}`).join(" · ");
+  } else if (lineas.length > 0 && lineas.every((l) => l.estadoLinea === "Aprobado")) {
+    estado = "Aprobado";
+  }
+  return updateGasto({ ...cabecera, estado, comentarioRechazo });
+}
+
+// Envía (o reenvía tras una corrección) el viaje completo a aprobación:
+// resetea el estado de TODAS las líneas a Pendiente, incluidas las que ya
+// habían sido aprobadas antes, para que el viaje vuelva a pasar por revisión
+// completa (se eligió mantenerlo simple en vez de aprobación parcial).
+export async function submitGasto(cabecera, lineas) {
+  for (const l of lineas) {
+    await patchGastoLinea(l, { estadoLinea: "Pendiente", revisorLinea: "", comentarioLinea: "" });
+  }
+  return updateGasto({ ...cabecera, estado: "Enviado", firmaFecha: new Date().toISOString(), comentarioRechazo: "" });
+}
+
+// ---------------------------------------------------------------------------
+// Configuración editable desde la app (por ahora, solo la tarifa por Km)
+// ---------------------------------------------------------------------------
+let kmRateCache = null;
+
+export async function getKmRate() {
+  if (kmRateCache != null) return kmRateCache;
+  if (CONFIG.useMock) {
+    const rec = await idb.get("meta", "kmRate");
+    kmRateCache = rec?.value ?? CONFIG.kmRate;
+    return kmRateCache;
+  }
+  if (!CONFIG.graph.lists.configuracion) {
+    kmRateCache = CONFIG.kmRate;
+    return kmRateCache;
+  }
+  const [rec] = await graph.graphGetItems("configuracion", { filter: `fields/Title eq 'tarifaKm'` }).catch(() => []);
+  kmRateCache = rec?.valor != null ? Number(rec.valor) : CONFIG.kmRate;
+  return kmRateCache;
+}
+
+export async function setKmRate(value) {
+  const rate = Number(value);
+  if (CONFIG.useMock) {
+    await idb.put("meta", { id: "kmRate", value: rate });
+    kmRateCache = rate;
+    return rate;
+  }
+  if (!CONFIG.graph.lists.configuracion) {
+    throw new Error('Falta configurar graph.lists.configuracion en config.js (ver New-HubAgricolaLists.ps1).');
+  }
+  const [rec] = await graph.graphGetItems("configuracion", { filter: `fields/Title eq 'tarifaKm'` });
+  if (rec?._itemId) await graph.graphUpdateItemById("configuracion", rec._itemId, { valor: rate });
+  else await graph.graphCreateItem("configuracion", { id: "tarifaKm", valor: rate });
+  kmRateCache = rate;
+  return rate;
 }
 
 // ---------------------------------------------------------------------------

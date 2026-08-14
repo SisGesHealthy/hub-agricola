@@ -76,6 +76,14 @@ const FIELD_MAPS = {
     gastoId: "field_1", fecha: "field_2", lugar: "field_3", proveedorServicio: "field_4",
     proveedorId: "field_5", documento: "field_6", tipo: "field_7", kmInicio: "field_8",
     kmFinal: "field_9", monto: "field_10", photoId: "field_11",
+    // Agregadas después del import inicial (vía New-HubAgricolaLists.ps1), por
+    // eso sí conservan su nombre interno real en vez de "field_N".
+    estadoLinea: "estadoLinea", revisorLinea: "revisorLinea", comentarioLinea: "comentarioLinea",
+  },
+  // Lista chica de clave/valor para ajustes editables desde la app (por ahora
+  // solo la tarifa por Km) — ver store.getKmRate/setKmRate.
+  configuracion: {
+    valor: "valor",
   },
 };
 

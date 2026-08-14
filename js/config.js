@@ -23,12 +23,19 @@ export const CONFIG = {
       rutaVisitas: "b4bba270-abc5-4824-8993-4b00d889ff27",
       gastosCabecera: "5dd1d7c9-3a83-4ef7-8334-d91b1729b1ba",
       gastosDetalle: "1749faa9-99ba-4aaa-bdd3-04db434fc915",
+      // Lista "Configuracion" (tarifa por Km editable por Talento Humano) —
+      // creala corriendo New-HubAgricolaLists.ps1 de nuevo (es seguro
+      // reejecutarlo) y pega aquí el GUID que te imprima al final. Mientras
+      // esté en null, la app usa el valor de respaldo "kmRate" de abajo.
+      configuracion: null,
     },
     // Nombre exacto de la biblioteca de documentos donde se suben las fotos y firmas.
     photoLibraryName: "Evidencias",
   },
 
-  // Valor por Km para el cálculo automático de movilización propia en Gastos de Viaje.
+  // Valor por Km de respaldo, solo mientras "graph.lists.configuracion" esté
+  // en null o la lista todavía no tenga el registro "tarifaKm" — una vez
+  // configurada, store.getKmRate() lee siempre el valor real de SharePoint.
   kmRate: 0.27,
 
   // Debajo de esta ponderación (0-1) por categoría, el Check List se marca "Plan de Acción".

@@ -16,6 +16,14 @@ export async function renderGastosHome(root) {
   root.appendChild(el("div", { class: "top-actions" }, [el("h1", {}, "Gastos de Viaje")]));
   root.appendChild(el("button", { class: "btn", onclick: () => renderGastoNuevo(root) }, "+ Nuevo viaje"));
 
+  const currentUser = getCurrentUser();
+  const esTalentoHumano = CONFIG.useMock || (currentUser?.username || "").toLowerCase() === CONFIG.approvers.kilometraje.toLowerCase();
+  if (esTalentoHumano) {
+    root.appendChild(
+      el("button", { class: "btn secondary", style: "margin-top:8px", onclick: () => renderConfigTarifa(root) }, "⚙️ Configurar tarifa por Km")
+    );
+  }
+
   const gastos = await store.listGastos();
   root.appendChild(el("div", { class: "section-title" }, "Viajes registrados"));
   if (gastos.length === 0) {
@@ -32,6 +40,44 @@ export async function renderGastosHome(root) {
     );
   });
   root.appendChild(card);
+}
+
+async function renderConfigTarifa(root) {
+  clear(root);
+  root.appendChild(el("div", { class: "top-actions" }, [el("button", { class: "back-btn", onclick: () => renderGastosHome(root) }, "‹ Volver")]));
+  root.appendChild(el("h1", {}, "Tarifa por Km"));
+
+  const rate = await store.getKmRate();
+  const card = el("div", { class: "card" });
+  const input = el("input", { type: "number", step: "0.01", min: "0", value: rate });
+  card.append(
+    el("label", { class: "field-label" }, "Valor por kilómetro ($)"),
+    input,
+    el("div", { class: "hint" }, "Se aplica a toda línea de \"Movilización propia (Km)\" que se cree a partir de ahora. Las líneas ya registradas conservan el monto con el que se calcularon.")
+  );
+  root.appendChild(card);
+
+  root.appendChild(
+    el(
+      "button",
+      {
+        class: "btn",
+        style: "margin-top:14px",
+        onclick: async () => {
+          const value = Number(input.value);
+          if (!(value > 0)) return toast("Ingresa un valor válido", "error");
+          try {
+            await store.setKmRate(value);
+          } catch (e) {
+            return toast(e.message, "error");
+          }
+          toast("Tarifa actualizada", "success");
+          renderGastosHome(root);
+        },
+      },
+      "Guardar"
+    )
+  );
 }
 
 async function renderGastoNuevo(root) {
@@ -158,7 +204,7 @@ async function renderGastoDetalle(root, gastoId) {
   }
 
   root.appendChild(el("div", { class: "section-title" }, "Líneas de gasto"));
-  lineas.forEach((l) => root.appendChild(renderLineaCard(l, provById)));
+  lineas.forEach((l) => root.appendChild(renderLineaCard(l, provById, { onClick: !readonly ? () => renderLineaForm(root, cabecera, l) : null })));
 
   if (!readonly) {
     root.appendChild(el("button", { class: "btn secondary", onclick: () => renderLineaForm(root, cabecera) }, "+ Agregar línea de gasto"));
@@ -178,9 +224,8 @@ async function renderGastoDetalle(root, gastoId) {
           onclick: async () => {
             if (lineas.length === 0) return toast("Agrega al menos una línea de gasto", "error");
             if (pad.isEmpty()) return toast("Firma antes de enviar", "error");
-            const jefeInmediato = store.computeAprobador(lineas);
-            await store.updateGasto({ ...cabecera, estado: "Enviado", firmaFecha: new Date().toISOString(), jefeInmediato });
-            toast(`Gasto enviado a ${jefeInmediato} para aprobación`, "success");
+            await store.submitGasto(cabecera, lineas);
+            toast("Gasto enviado a aprobación", "success");
             renderGastosHome(root);
           },
         },
@@ -194,53 +239,65 @@ async function renderGastoDetalle(root, gastoId) {
   if (cabecera.estado === "Enviado") {
     const currentUser = getCurrentUser();
     const currentEmail = (currentUser?.username || "").toLowerCase();
-    const asignadoA = (cabecera.jefeInmediato || "").toLowerCase();
-    // En modo demo no hay sesión real de Microsoft, así que no se puede
-    // comparar cuenta contra cuenta — se deja pasar para poder probar.
-    const puedeAprobar = CONFIG.useMock || !asignadoA || currentEmail === asignadoA;
 
-    root.appendChild(el("div", { class: "section-title" }, "Aprobación"));
+    root.appendChild(el("div", { class: "section-title" }, "Aprobación por línea"));
     root.appendChild(
-      el("div", { class: "hint" }, `Asignado a: ${cabecera.jefeInmediato || "sin asignar"}. En producción esto también podría llegar como aprobación de Microsoft Approvals (Teams/correo); por ahora, la persona asignada lo resuelve desde este mismo celular.`)
+      el("div", { class: "hint" }, "El kilometraje lo aprueba Talento Humano; el resto (hospedaje, alimentación, etc.) lo aprueba Compras. Cada línea se aprueba por separado; si rechazas cualquiera, todo el viaje vuelve al viajero para corregir y reenviar.")
     );
 
-    if (puedeAprobar) {
-      root.appendChild(
-        el(
-          "button",
-          {
-            class: "btn",
-            onclick: async () => {
-              await store.updateGasto({ ...cabecera, estado: "Aprobado", revisor: currentUser?.username || currentUser?.name || "" });
-              toast("Gasto aprobado", "success");
-              renderGastosHome(root);
+    lineas.forEach((l) => {
+      const aprobador = store.computeAprobadorLinea(l.tipo);
+      const estadoLinea = l.estadoLinea || "Pendiente";
+      // En modo demo no hay sesión real de Microsoft, así que no se puede
+      // comparar cuenta contra cuenta — se deja pasar para poder probar.
+      const puedeRevisar = estadoLinea === "Pendiente" && (CONFIG.useMock || currentEmail === aprobador.toLowerCase());
+
+      const lineaCard = el("div", { class: "card" }, [
+        el("div", { class: "list-row" }, [
+          el("div", {}, [
+            el("div", { class: "title" }, `${l.tipo} — $${Number(l.monto || 0).toFixed(2)}`),
+            el("div", { class: "sub" }, `Asignado a: ${aprobador}`),
+          ]),
+          el("span", { class: `badge ${estadoLinea === "Aprobado" ? "ok" : estadoLinea === "Rechazado" ? "bad" : "warn"}` }, estadoLinea),
+        ]),
+      ]);
+
+      if (puedeRevisar) {
+        const btnRow = el("div", { class: "btn-row", style: "margin-top:8px" });
+        btnRow.append(
+          el(
+            "button",
+            {
+              class: "btn small",
+              onclick: async () => {
+                await store.reviewGastoLinea(cabecera.id, l, "Aprobado", { revisor: currentUser?.username || currentUser?.name || "" });
+                toast("Línea aprobada", "success");
+                renderGastoDetalle(root, cabecera.id);
+              },
             },
-          },
-          "Aprobar"
-        )
-      );
-      root.appendChild(
-        el(
-          "button",
-          {
-            class: "btn danger",
-            style: "margin-top:8px",
-            onclick: async () => {
-              const motivo = prompt("Motivo del rechazo:");
-              if (!motivo) return;
-              await store.updateGasto({ ...cabecera, estado: "Rechazado", comentarioRechazo: motivo, revisor: currentUser?.username || currentUser?.name || "" });
-              toast("Gasto rechazado", "success");
-              renderGastosHome(root);
+            "Aprobar"
+          ),
+          el(
+            "button",
+            {
+              class: "btn danger small",
+              onclick: async () => {
+                const motivo = prompt("Motivo del rechazo:");
+                if (!motivo) return;
+                await store.reviewGastoLinea(cabecera.id, l, "Rechazado", { comentario: motivo, revisor: currentUser?.username || currentUser?.name || "" });
+                toast("Línea rechazada", "success");
+                renderGastoDetalle(root, cabecera.id);
+              },
             },
-          },
-          "Rechazar"
-        )
-      );
-    } else {
-      root.appendChild(
-        el("div", { class: "hint" }, `Este gasto está asignado a ${cabecera.jefeInmediato} para aprobar. Tu cuenta (${currentUser?.username || "sin sesión"}) no coincide, así que no puedes aprobarlo o rechazarlo desde aquí.`)
-      );
-    }
+            "Rechazar"
+          )
+        );
+        lineaCard.appendChild(btnRow);
+      } else if (estadoLinea === "Pendiente") {
+        lineaCard.appendChild(el("div", { class: "hint" }, `Pendiente de ${aprobador} — tu cuenta (${currentUser?.username || "sin sesión"}) no la puede revisar.`));
+      }
+      root.appendChild(lineaCard);
+    });
   }
 
   if (cabecera.estado === "Rechazado") {
@@ -261,36 +318,43 @@ async function renderGastoDetalle(root, gastoId) {
   }
 }
 
-function renderLineaCard(l, provById = {}) {
+function renderLineaCard(l, provById = {}, { onClick } = {}) {
   const provNombre = l.proveedorId ? provById[l.proveedorId]?.nombre : null;
-  return el("div", { class: "expense-line" }, [
+  const estadoLinea = l.estadoLinea || "Pendiente";
+  const badgeClass = estadoLinea === "Aprobado" ? "ok" : estadoLinea === "Rechazado" ? "bad" : "info";
+  return el("div", { class: "expense-line", onclick: onClick || undefined, style: onClick ? "cursor:pointer" : "" }, [
     el("div", { class: "head" }, [el("div", {}, `${l.fecha || ""} · ${l.tipo}`), el("div", { class: "amt" }, `$${Number(l.monto || 0).toFixed(2)}`)]),
     el("div", { class: "hint" }, [l.lugar, l.proveedorServicio, provNombre ? `Visita: ${provNombre}` : null].filter(Boolean).join(" · ")),
+    el("span", { class: `badge ${badgeClass}`, style: "margin-top:6px" }, estadoLinea),
   ]);
 }
 
-async function renderLineaForm(root, cabecera) {
+async function renderLineaForm(root, cabecera, existing = null) {
   clear(root);
   root.appendChild(el("div", { class: "top-actions" }, [el("button", { class: "back-btn", onclick: () => renderGastoDetalle(root, cabecera.id) }, "‹ Volver")]));
-  root.appendChild(el("h1", {}, "Nueva línea de gasto"));
+  root.appendChild(el("h1", {}, existing ? "Editar línea de gasto" : "Nueva línea de gasto"));
 
   const card = el("div", { class: "card" });
-  const tipoSelect = el("select", {}, TIPOS_GASTO.map((t) => el("option", { value: t }, t)));
-  const fecha = el("input", { type: "date", value: new Date().toISOString().slice(0, 10) });
-  const lugar = el("input", { type: "text", placeholder: "Lugar" });
-  const proveedorServicio = el("input", { type: "text", placeholder: "Proveedor de servicio (ej. hotel, restaurante)" });
-  const documento = el("input", { type: "text", placeholder: "N.º de factura" });
+  const tipoSelect = el(
+    "select",
+    {},
+    TIPOS_GASTO.map((t) => el("option", { value: t, selected: existing?.tipo === t ? "selected" : undefined }, t))
+  );
+  const fecha = el("input", { type: "date", value: (existing?.fecha || new Date().toISOString()).slice(0, 10) });
+  const lugar = el("input", { type: "text", placeholder: "Lugar", value: existing?.lugar || "" });
+  const proveedorServicio = el("input", { type: "text", placeholder: "Proveedor de servicio (ej. hotel, restaurante)", value: existing?.proveedorServicio || "" });
+  const documento = el("input", { type: "text", placeholder: "N.º de factura", value: existing?.documento || "" });
   const todosProveedores = await store.listProveedores();
   const opcionesProveedor = cabecera.proveedoresVisitados?.length
     ? todosProveedores.filter((p) => cabecera.proveedoresVisitados.includes(p.id))
     : todosProveedores;
   const proveedorSelect = el("select", {}, [
     el("option", { value: "" }, "— No aplica (peaje, alimentación, etc.) —"),
-    ...opcionesProveedor.map((p) => el("option", { value: p.id }, `${p.nombre} (${p.fruta})`)),
+    ...opcionesProveedor.map((p) => el("option", { value: p.id, selected: existing?.proveedorId === p.id ? "selected" : undefined }, `${p.nombre} (${p.fruta})`)),
   ]);
-  const monto = el("input", { type: "number", placeholder: "0.00", step: "0.01" });
-  const kmInicio = el("input", { type: "number" });
-  const kmFinal = el("input", { type: "number" });
+  const monto = el("input", { type: "number", placeholder: "0.00", step: "0.01", value: existing?.monto ?? "" });
+  const kmInicio = el("input", { type: "number", value: existing?.kmInicio ?? "" });
+  const kmFinal = el("input", { type: "number", value: existing?.kmFinal ?? "" });
   const kmWrap = el("div", { class: "grid-2" }, [
     el("div", {}, [el("label", { class: "field-label" }, "Km inicio"), kmInicio]),
     el("div", {}, [el("label", { class: "field-label" }, "Km final"), kmFinal]),
@@ -327,7 +391,7 @@ async function renderLineaForm(root, cabecera) {
   const photoRow = el("div", { class: "photo-row" });
   photoCard.appendChild(photoRow);
   root.appendChild(photoCard);
-  let photoId = null;
+  let photoId = existing?.photoId || null;
   function refreshPhoto() {
     renderPhotoRow(photoRow, photoId ? [photoId] : [], {
       max: 1,
@@ -356,6 +420,8 @@ async function renderLineaForm(root, cabecera) {
           if (!isKm && !documento.value.trim()) return toast("Ingresa el N.º de factura", "error");
           if (!isKm && !photoId) return toast("Adjunta la foto de la factura o recibo", "error");
           await store.addGastoLinea(cabecera.id, {
+            id: existing?.id,
+            _itemId: existing?._itemId,
             tipo: tipoSelect.value,
             fecha: fecha.value,
             lugar: lugar.value.trim(),
@@ -367,11 +433,30 @@ async function renderLineaForm(root, cabecera) {
             kmFinal: kmFinal.value,
             photoId,
           });
-          toast("Línea de gasto agregada", "success");
+          toast(existing ? "Línea actualizada" : "Línea de gasto agregada", "success");
           renderGastoDetalle(root, cabecera.id);
         },
       },
       "Guardar línea"
     )
   );
+
+  if (existing) {
+    root.appendChild(
+      el(
+        "button",
+        {
+          class: "btn danger",
+          style: "margin-top:10px",
+          onclick: async () => {
+            if (!confirm("¿Eliminar esta línea de gasto?")) return;
+            await store.deleteGastoLinea(existing);
+            toast("Línea eliminada", "success");
+            renderGastoDetalle(root, cabecera.id);
+          },
+        },
+        "🗑 Eliminar línea"
+      )
+    );
+  }
 }

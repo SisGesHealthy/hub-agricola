@@ -125,7 +125,8 @@ export async function buildGastoPdf({ cabecera, lineas, provById = {}, totales }
     doc.text(`Proveedores visitados: ${nombresProv}`, margin, y);
     y += 14;
   }
-  doc.text(`Estado: ${cabecera.estado || "-"}    Aprobado por: ${cabecera.revisor || cabecera.jefeInmediato || "-"}`, margin, y);
+  const revisores = [...new Set(lineas.map((l) => l.revisorLinea).filter(Boolean))].join(", ");
+  doc.text(`Estado: ${cabecera.estado || "-"}    Aprobado por: ${revisores || "-"}`, margin, y);
   y += 20;
 
   doc.autoTable({
