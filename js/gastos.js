@@ -6,6 +6,7 @@ import { CONFIG } from "./config.js";
 import { buildGastoPdf, downloadPdf } from "./pdf.js";
 
 const estadoBadge = { Borrador: "info", Enviado: "warn", Aprobado: "ok", Revisado: "ok", Rechazado: "bad", Pagado: "ok" };
+const rutaEstadoBadge = { Planificada: "info", Realizada: "ok", Reprogramada: "warn", Cancelada: "bad" };
 // El PDF consolidado (para grapar facturas físicas) solo tiene sentido una
 // vez que el gasto ya pasó la aprobación — antes podría seguir cambiando.
 const ESTADOS_EXPORTABLES = ["Aprobado", "Revisado", "Pagado"];
@@ -113,12 +114,48 @@ async function renderGastoNuevo(root) {
   );
   root.appendChild(card);
 
-  // Viajes mixtos: un mismo viaje puede cubrir varios proveedores/puntos de visita
-  // (ver cada línea de gasto para el detalle de fecha/lugar de cada parada).
+  // Un viaje puede cubrir varias visitas de Ruta (varios proveedores/días).
+  // En vez de volver a marcar a mano qué proveedores se visitaron, se ligan
+  // las visitas de Ruta ya registradas — así Gastos deja de ser un silo
+  // aparte y el proveedor de cada parada se toma directo de ahí.
+  const todasRutas = await store.listRutas();
+  const rutaCard = el("div", { class: "card" });
+  rutaCard.appendChild(el("label", { class: "field-label", style: "margin-top:0" }, "Rutas de este viaje"));
+  rutaCard.appendChild(el("div", { class: "hint" }, "Marca las visitas de Ruta que corresponden a este viaje (filtradas por las fechas de arriba)."));
+  const rutaListBox = el("div");
+  rutaCard.appendChild(rutaListBox);
+  root.appendChild(rutaCard);
+
+  const rutaChecks = [];
+  function refreshRutaList() {
+    clear(rutaListBox);
+    rutaChecks.length = 0;
+    const desde = fechaInicio.value;
+    const hasta = fechaFin.value;
+    const enRango = todasRutas.filter((r) => (!desde || r.fecha >= desde) && (!hasta || r.fecha <= hasta));
+    if (enRango.length === 0) {
+      rutaListBox.appendChild(el("div", { class: "hint" }, "No hay rutas registradas en estas fechas."));
+      return;
+    }
+    enRango.forEach((r) => {
+      const cb = el("input", { type: "checkbox", value: r.id, style: "width:auto;margin-right:8px" });
+      rutaChecks.push({ cb, ruta: r });
+      rutaListBox.appendChild(
+        el("label", { style: "display:flex;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:14px" }, [
+          cb,
+          `${r.fecha} · ${r.proveedor?.nombre || r.proveedorNuevoTexto || "—"} (${r.lugar || r.estado})`,
+        ])
+      );
+    });
+  }
+  refreshRutaList();
+  fechaInicio.addEventListener("change", refreshRutaList);
+  fechaFin.addEventListener("change", refreshRutaList);
+
+  // Respaldo para viajes sin visita de Ruta formal (ej. reuniones administrativas).
   const proveedores = await store.listProveedores();
   const provCard = el("div", { class: "card" });
-  provCard.appendChild(el("label", { class: "field-label", style: "margin-top:0" }, "Proveedores visitados en este viaje"));
-  provCard.appendChild(el("div", { class: "hint" }, "Marca todos los que apliquen — un viaje puede cubrir varios puntos."));
+  provCard.appendChild(el("label", { class: "field-label", style: "margin-top:0" }, "Otros proveedores (sin ruta registrada)"));
   const checks = [];
   proveedores.forEach((p) => {
     const cb = el("input", { type: "checkbox", value: p.id, style: "width:auto;margin-right:8px" });
@@ -140,7 +177,11 @@ async function renderGastoNuevo(root) {
         style: "margin-top:14px",
         onclick: async () => {
           if (!ciudadViaje.value.trim()) return toast("Ingresa la ciudad o ruta de viaje", "error");
-          const proveedoresVisitados = checks.filter((c) => c.checked).map((c) => c.value);
+          const rutasSeleccionadas = rutaChecks.filter((x) => x.cb.checked).map((x) => x.ruta);
+          const rutasIds = rutasSeleccionadas.map((r) => r.id);
+          const proveedoresDeRutas = rutasSeleccionadas.map((r) => r.proveedorId).filter(Boolean);
+          const proveedoresManual = checks.filter((c) => c.checked).map((c) => c.value);
+          const proveedoresVisitados = [...new Set([...proveedoresDeRutas, ...proveedoresManual])];
           const g = await store.createGasto({
             viajero: viajero.value.trim(),
             ciudadBase: ciudadBase.value.trim(),
@@ -149,6 +190,7 @@ async function renderGastoNuevo(root) {
             fechaFin: fechaFin.value,
             motivo: motivo.value.trim(),
             anticipo: Number(anticipo.value || 0),
+            rutasIds,
             proveedoresVisitados,
           });
           renderGastoDetalle(root, g.id);
@@ -184,6 +226,27 @@ async function renderGastoDetalle(root, gastoId) {
     summary.appendChild(el("div", { class: "list-row" }, [el("div", {}, "Proveedores visitados"), el("div", { style: "text-align:right;max-width:60%" }, nombres || "-")]));
   }
   root.appendChild(summary);
+
+  if (cabecera.rutasIds?.length) {
+    const todasRutas = await store.listRutas();
+    const rutasDelViaje = todasRutas.filter((r) => cabecera.rutasIds.includes(r.id));
+    if (rutasDelViaje.length) {
+      const rutasCard = el("div", { class: "card" });
+      rutasCard.appendChild(el("div", { class: "section-title", style: "margin-top:0" }, "Rutas de este viaje"));
+      rutasDelViaje.forEach((r) => {
+        rutasCard.appendChild(
+          el("div", { class: "list-row" }, [
+            el("div", {}, [
+              el("div", { class: "title" }, r.proveedor?.nombre || r.proveedorNuevoTexto || "—"),
+              el("div", { class: "sub" }, `${r.fecha} · ${r.lugar || ""}`),
+            ]),
+            el("span", { class: `badge ${rutaEstadoBadge[r.estado] || "info"}` }, r.estado),
+          ])
+        );
+      });
+      root.appendChild(rutasCard);
+    }
+  }
 
   if (ESTADOS_EXPORTABLES.includes(cabecera.estado)) {
     root.appendChild(

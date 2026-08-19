@@ -71,6 +71,9 @@ const FIELD_MAPS = {
     fechaFin: "field_5", motivo: "field_6", proveedoresVisitados: "field_7", anticipo: "field_8",
     saldoAnterior: "field_9", estado: "field_10", jefeInmediato: "field_11", revisor: "field_12",
     firmaFecha: "field_13", comentarioRechazo: "field_14", createdAt: "field_15",
+    // Agregada después del import inicial — liga el viaje con las visitas de
+    // Ruta que lo componen (ver store.createGasto / gastos.js).
+    rutasIds: "rutasIds",
   },
   gastosDetalle: {
     gastoId: "field_1", fecha: "field_2", lugar: "field_3", proveedorServicio: "field_4",

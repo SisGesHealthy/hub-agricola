@@ -32,7 +32,7 @@ function toGraphFields(fields) {
 const GRAPH_FIELD_SHAPES = {
   rutaVisitas: { coordsPlan: "json", coordsReales: "json" },
   seguimientoSemanal: { coords: "json", photoIds: "array" },
-  gastosCabecera: { proveedoresVisitados: "array" },
+  gastosCabecera: { proveedoresVisitados: "array", rutasIds: "array" },
 };
 
 function fromGraphFields(listKey, rec) {
