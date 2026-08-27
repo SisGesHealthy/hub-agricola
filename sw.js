@@ -1,6 +1,6 @@
 // Service worker: cachea el shell de la app para que funcione sin conexión en campo.
 // Los datos (proveedores, checklists, fotos, etc.) viven en IndexedDB, no aquí.
-const CACHE_NAME = "hub-agricola-v26";
+const CACHE_NAME = "hub-agricola-v27";
 const SHELL_FILES = [
   "./",
   "./index.html",
@@ -20,6 +20,7 @@ const SHELL_FILES = [
   "./js/seguimiento.js",
   "./js/ruta.js",
   "./js/gastos.js",
+  "./js/proveedores.js",
   "./vendor/jspdf.umd.min.js",
   "./vendor/jspdf.plugin.autotable.min.js",
   "./vendor/msal-browser.min.js",

@@ -31,23 +31,28 @@ export async function renderChecklistHome(root) {
       c.ponderacionTotal != null ? el("div", { class: "sub" }, fmtPct(c.ponderacionTotal)) : null,
     ]);
     if (c.estado === "Borrador") {
-      rt.appendChild(
-        el(
-          "button",
-          {
-            class: "btn ghost small",
-            style: "margin-top:6px",
-            onclick: async (ev) => {
-              ev.stopPropagation();
-              if (!confirm(`¿Borrar el borrador de "${c.proveedor?.nombre || "este proveedor"}"? Esto no se puede deshacer.`)) return;
+      const delBtn = el(
+        "button",
+        {
+          class: "btn ghost small",
+          style: "margin-top:6px",
+          onclick: async (ev) => {
+            ev.stopPropagation();
+            if (!confirm(`¿Borrar el borrador de "${c.proveedor?.nombre || "este proveedor"}"? Esto no se puede deshacer.`)) return;
+            delBtn.disabled = true;
+            delBtn.textContent = "Borrando…";
+            try {
               await store.deleteChecklist(c.id);
               toast("Borrador eliminado", "success");
-              renderChecklistHome(root);
-            },
+            } catch (e) {
+              toast(`No se pudo borrar: ${e.message}`, "error");
+            }
+            renderChecklistHome(root);
           },
-          "🗑 Borrar"
-        )
+        },
+        "🗑 Borrar"
       );
+      rt.appendChild(delBtn);
     }
     const row = el(
       "div",
@@ -184,6 +189,10 @@ function renderQuickAddProveedor(root) {
         onclick: async () => {
           if (!nombre.value.trim()) return toast("Ingresa el nombre del productor", "error");
           if (!provinciaSelect.value) return toast("Selecciona la provincia", "error");
+          const dup = await store.findProveedorDuplicado(nombre.value.trim());
+          if (dup && !confirm(`Ya existe un proveedor llamado "${dup.nombre}" (${dup.fruta || "-"}, ${dup.ubicacion || "-"}). ¿Registrar de todas formas otro con el mismo nombre?`)) {
+            return;
+          }
           const p = await store.saveProveedor({
             nombre: nombre.value.trim(),
             fruta: fruta.value.trim(),

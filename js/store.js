@@ -149,8 +149,24 @@ export async function saveProveedor(fields) {
     await idb.put("proveedores", rec);
     return rec;
   }
+  if (fields._itemId) return graph.graphUpdateItemById("proveedores", fields._itemId, toGraphFields(fields));
   if (fields.id) return graph.graphUpdateItemByAppId("proveedores", fields.id, toGraphFields(fields));
   return graph.graphCreateItem("proveedores", toGraphFields({ ...fields, id: newId("prov") }));
+}
+
+function normalizeNombre(s) {
+  return (s || "").trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+// Busca un proveedor con el mismo nombre (sin importar mayúsculas/espacios)
+// para advertir antes de crear un duplicado — origen real de varios "Carmen
+// Lisintuña"/"Campovivo mora" repetidos en el catálogo. excludeId se usa al
+// editar, para no compararse contra sí mismo.
+export async function findProveedorDuplicado(nombre, excludeId = null) {
+  const target = normalizeNombre(nombre);
+  if (!target) return null;
+  const all = await listProveedores();
+  return all.find((p) => p.id !== excludeId && normalizeNombre(p.nombre) === target) || null;
 }
 
 // Borra un proveedor (p.ej. un duplicado de prueba). Los checklists,
@@ -238,12 +254,18 @@ export async function deleteChecklist(checklistId) {
   if (CONFIG.useMock) {
     if (cabecera) await idb.delete("checklistCab", checklistId);
     for (const it of items) await idb.delete("checklistItems", it.id);
-  } else {
-    for (const it of items) {
-      if (it._itemId) await graph.graphDeleteItemById("checklistItems", it._itemId);
-    }
-    if (cabecera?._itemId) await graph.graphDeleteItemById("checklistCabecera", cabecera._itemId);
+    return;
   }
+  // ~96 ítems por checklist: borrarlos uno por uno (secuencial) tardaba
+  // decenas de segundos sin ninguna señal visual, y al primer 404 (ítem ya
+  // borrado en un intento anterior) parecía "colgado". Se borran en tandas
+  // en paralelo, igual que graphBatchCreateItems al crearlos.
+  const CHUNK = 20;
+  for (let i = 0; i < items.length; i += CHUNK) {
+    const chunk = items.slice(i, i + CHUNK);
+    await Promise.all(chunk.filter((it) => it._itemId).map((it) => graph.graphDeleteItemById("checklistItems", it._itemId)));
+  }
+  if (cabecera?._itemId) await graph.graphDeleteItemById("checklistCabecera", cabecera._itemId);
 }
 
 export async function updateChecklistItem(item) {

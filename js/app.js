@@ -6,6 +6,7 @@ import { renderChecklistHome } from "./checklist.js";
 import { renderSeguimientoHome } from "./seguimiento.js";
 import { renderRutaHome } from "./ruta.js";
 import { renderGastosHome } from "./gastos.js";
+import { renderProveedoresHome } from "./proveedores.js";
 
 const root = document.getElementById("view-root");
 const navButtons = [...document.querySelectorAll(".nav-btn")];
@@ -16,6 +17,7 @@ const ROUTES = {
   seguimiento: renderSeguimientoHome,
   ruta: renderRutaHome,
   gastos: renderGastosHome,
+  proveedores: renderProveedoresHome,
 };
 
 function setActiveNav(route) {
@@ -35,11 +37,12 @@ async function renderInicio(container) {
   container.appendChild(el("h1", {}, "Buenos días 👋"));
   container.appendChild(el("div", { class: "hint" }, "Resumen de pendientes del día"));
 
-  const [checklists, seguimientos, gastos, rutas] = await Promise.all([
+  const [checklists, seguimientos, gastos, rutas, proveedores] = await Promise.all([
     store.listChecklists(),
     store.listSeguimientos(),
     store.listGastos(),
     store.listRutas(),
+    store.listProveedores(),
   ]);
 
   const hoy = new Date().toISOString().slice(0, 10);
@@ -47,6 +50,12 @@ async function renderInicio(container) {
   const vencidos = seguimientos.filter((s) => s.fechaMaxCumplimiento && s.fechaMaxCumplimiento < hoy && s.estado !== "Cumplido").length;
   const gastosPendientes = gastos.filter((g) => g.estado === "Enviado").length;
   const visitasHoy = rutas.filter((r) => r.fecha === hoy && (r.estado === "Planificada" || r.estado === "Reprogramada")).length;
+  const nombresProveedores = {};
+  proveedores.forEach((p) => {
+    const k = (p.nombre || "").trim().toLowerCase().replace(/\s+/g, " ");
+    if (k) nombresProveedores[k] = (nombresProveedores[k] || 0) + 1;
+  });
+  const duplicados = Object.values(nombresProveedores).filter((n) => n > 1).length;
 
   const grid = el("div", { class: "home-grid" }, [
     tile("Check List", "Con plan de acción", planAccion, planAccion > 0 ? "bad" : "ok", () => goTo("checklist")),
@@ -62,9 +71,20 @@ async function renderInicio(container) {
     el("button", { class: "btn secondary", style: "margin-bottom:8px", onclick: () => goTo("checklist") }, "📋 Nueva inspección"),
     el("button", { class: "btn secondary", style: "margin-bottom:8px", onclick: () => goTo("seguimiento") }, "🌱 Registrar seguimiento"),
     el("button", { class: "btn secondary", style: "margin-bottom:8px", onclick: () => goTo("ruta") }, "📍 Registrar visita de ruta"),
-    el("button", { class: "btn secondary", onclick: () => goTo("gastos") }, "💵 Registrar gasto de viaje")
+    el("button", { class: "btn secondary", style: "margin-bottom:8px", onclick: () => goTo("gastos") }, "💵 Registrar gasto de viaje"),
+    el("button", { class: "btn secondary", onclick: () => goTo("proveedores") }, "📇 Catálogo de proveedores")
   );
   container.appendChild(quick);
+
+  if (duplicados > 0) {
+    container.appendChild(
+      el(
+        "div",
+        { class: "hint", style: "color:#8a2418;margin-top:10px" },
+        `⚠️ ${duplicados} nombre(s) de proveedor repetido(s) en el catálogo — revísalos en "Catálogo de proveedores".`
+      )
+    );
+  }
 
   if (CONFIG.useMock) {
     container.appendChild(
