@@ -38,6 +38,11 @@ export const CONFIG = {
   // Debajo de esta ponderación (0-1) por categoría, el Check List se marca "Plan de Acción".
   ponderacionUmbral: 0.8,
 
+  // Viático fijo por semana (no por viaje) que recibe cada técnico — la
+  // liquidación de Gastos de Viaje se agrupa por semana y se compara contra
+  // este monto (ver store.computeSemanaTotales).
+  viaticoSemanal: 200,
+
   // Quién aprueba cada línea de gasto según su tipo: kilometraje (movilización
   // propia) lo aprueba Talento Humano; cualquier otro tipo (hospedaje,
   // alimentación, etc.) lo aprueba Compras. Ver store.computeAprobadorLinea().

@@ -82,6 +82,11 @@ const FIELD_MAPS = {
     // Agregadas después del import inicial (vía New-HubAgricolaLists.ps1), por
     // eso sí conservan su nombre interno real en vez de "field_N".
     estadoLinea: "estadoLinea", revisorLinea: "revisorLinea", comentarioLinea: "comentarioLinea",
+    // Fotos del odómetro para líneas de kilometraje (distintas de "photoId",
+    // que sigue siendo la foto de factura/recibo para el resto de tipos), y
+    // un comentario libre y opcional del viajero (distinto de
+    // "comentarioLinea", que es el motivo de rechazo del aprobador).
+    photoIdKmInicio: "photoIdKmInicio", photoIdKmFinal: "photoIdKmFinal", comentario: "comentario",
   },
   // Lista chica de clave/valor para ajustes editables desde la app (por ahora
   // solo la tarifa por Km) — ver store.getKmRate/setKmRate.

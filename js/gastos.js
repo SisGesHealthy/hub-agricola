@@ -12,6 +12,15 @@ const rutaEstadoBadge = { Planificada: "info", Realizada: "ok", Reprogramada: "w
 const ESTADOS_EXPORTABLES = ["Aprobado", "Revisado", "Pagado"];
 const TIPOS_GASTO = ["Movilización propia (Km)", "Hospedaje", "Alimentación", "Atenciones", "Peaje", "Varios"];
 
+// "2026-08-14" -> "14/08/2026" — las fechas en bruto (ISO, a veces con hora
+// completa porque SharePoint las devuelve así) se prestaban a confusión.
+function fmtFecha(iso) {
+  if (!iso) return "-";
+  const [y, m, d] = iso.slice(0, 10).split("-");
+  if (!y || !m || !d) return iso;
+  return `${d}/${m}/${y}`;
+}
+
 export async function renderGastosHome(root) {
   clear(root);
   root.appendChild(el("div", { class: "top-actions" }, [el("h1", {}, "Gastos de Viaje")]));
@@ -25,22 +34,95 @@ export async function renderGastosHome(root) {
     );
   }
 
-  const gastos = await store.listGastos();
-  root.appendChild(el("div", { class: "section-title" }, "Viajes registrados"));
+  const gastos = await store.listGastosConTotales();
   if (gastos.length === 0) {
+    root.appendChild(el("div", { class: "section-title" }, "Viajes registrados"));
     root.appendChild(el("div", { class: "empty-state" }, "Todavía no hay gastos de viaje registrados."));
     return;
   }
-  const card = el("div", { class: "card" });
-  gastos.forEach((g) => {
-    card.appendChild(
-      el("div", { class: "list-row", onclick: () => renderGastoDetalle(root, g.id) }, [
-        el("div", {}, [el("div", { class: "title" }, g.ciudadViaje || g.motivo || "Viaje"), el("div", { class: "sub" }, `${g.fechaInicio} → ${g.fechaFin}`)]),
-        el("span", { class: `badge ${estadoBadge[g.estado] || "info"}` }, g.estado),
-      ])
-    );
-  });
-  root.appendChild(card);
+
+  const filterCard = el("div", { class: "card" });
+  const desde = el("input", { type: "date" });
+  const hasta = el("input", { type: "date" });
+  filterCard.append(
+    el("label", { class: "field-label", style: "margin-top:0" }, "Filtrar por fecha de viaje"),
+    el("div", { class: "grid-2" }, [
+      el("div", {}, [el("label", { class: "field-label" }, "Desde"), desde]),
+      el("div", {}, [el("label", { class: "field-label" }, "Hasta"), hasta]),
+    ])
+  );
+  root.appendChild(filterCard);
+
+  const resultsSection = el("div");
+  root.appendChild(resultsSection);
+
+  function renderResults() {
+    clear(resultsSection);
+    const filtrados = gastos.filter((g) => {
+      const fecha = (g.fechaInicio || "").slice(0, 10);
+      if (desde.value && fecha < desde.value) return false;
+      if (hasta.value && fecha > hasta.value) return false;
+      return true;
+    });
+
+    if (filtrados.length === 0) {
+      resultsSection.appendChild(el("div", { class: "empty-state" }, "No hay viajes que coincidan con el filtro."));
+      return;
+    }
+
+    // Así se liquidan y controlan los gastos del técnico: agrupados por
+    // semana (viático fijo semanal, ver CONFIG.viaticoSemanal), no por viaje.
+    const semanas = {};
+    filtrados.forEach((g) => {
+      const fecha = (g.fechaInicio || "").slice(0, 10);
+      if (!fecha) return;
+      const year = store.isoWeekYear(fecha);
+      const week = store.isoWeek(fecha);
+      const key = `${year}-${String(week).padStart(2, "0")}`;
+      semanas[key] = semanas[key] || { year, week, gastos: [] };
+      semanas[key].gastos.push(g);
+    });
+
+    Object.values(semanas)
+      .sort((a, b) => b.year - a.year || b.week - a.week)
+      .forEach(({ year, week, gastos: gastosSemana }) => {
+        const { inicio, fin } = store.isoWeekRange(year, week);
+        const totalSemana = gastosSemana.reduce((s, g) => s + g.totalLineas, 0);
+        const semanaTotales = store.computeSemanaTotales(totalSemana);
+
+        resultsSection.appendChild(el("div", { class: "section-title" }, `Semana ${week} · ${fmtFecha(inicio)} – ${fmtFecha(fin)}`));
+        const semanaCard = el("div", { class: "card" }, [
+          el("div", { class: "list-row" }, [el("div", {}, "Total gastos"), el("div", { class: "amt" }, fmtMoney(semanaTotales.total))]),
+          el("div", { class: "list-row" }, [el("div", {}, "Viático semanal"), el("div", {}, fmtMoney(semanaTotales.anticipo))]),
+          el("div", { class: "list-row" }, [
+            el("div", {}, semanaTotales.valorADevolver >= 0 ? "La empresa reembolsa" : "El técnico devuelve"),
+            el("div", { class: "amt" }, fmtMoney(Math.abs(semanaTotales.valorADevolver))),
+          ]),
+        ]);
+        resultsSection.appendChild(semanaCard);
+
+        const card = el("div", { class: "card" });
+        gastosSemana.forEach((g) => {
+          card.appendChild(
+            el("div", { class: "list-row", onclick: () => renderGastoDetalle(root, g.id) }, [
+              el("div", {}, [
+                el("div", { class: "title" }, g.ciudadViaje || g.motivo || "Viaje"),
+                el("div", { class: "sub" }, `${fmtFecha(g.fechaInicio)} – ${fmtFecha(g.fechaFin)}`),
+              ]),
+              el("div", { class: "rt" }, [
+                el("span", { class: `badge ${estadoBadge[g.estado] || "info"}` }, g.estado),
+                el("div", { class: "sub" }, fmtMoney(g.totalLineas)),
+              ]),
+            ])
+          );
+        });
+        resultsSection.appendChild(card);
+      });
+  }
+
+  desde.addEventListener("change", renderResults);
+  hasta.addEventListener("change", renderResults);
+  renderResults();
 }
 
 async function renderConfigTarifa(root) {
@@ -94,7 +176,6 @@ async function renderGastoNuevo(root) {
   const fechaInicio = el("input", { type: "date", value: new Date().toISOString().slice(0, 10) });
   const fechaFin = el("input", { type: "date", value: new Date().toISOString().slice(0, 10) });
   const motivo = el("input", { type: "text", placeholder: "Ej. Visita proveedores de mora" });
-  const anticipo = el("input", { type: "number", placeholder: "0.00", step: "0.01" });
 
   card.append(
     el("label", { class: "field-label" }, "Viajero"),
@@ -108,9 +189,7 @@ async function renderGastoNuevo(root) {
       el("div", {}, [el("label", { class: "field-label" }, "Fecha fin"), fechaFin]),
     ]),
     el("label", { class: "field-label" }, "Motivo del viaje"),
-    motivo,
-    el("label", { class: "field-label" }, "Anticipo recibido ($)"),
-    anticipo
+    motivo
   );
   root.appendChild(card);
 
@@ -143,7 +222,7 @@ async function renderGastoNuevo(root) {
       rutaListBox.appendChild(
         el("label", { style: "display:flex;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:14px" }, [
           cb,
-          `${r.fecha} · ${r.proveedor?.nombre || r.proveedorNuevoTexto || "—"} (${r.lugar || r.estado})`,
+          `${fmtFecha(r.fecha)} · ${r.proveedor?.nombre || r.proveedorNuevoTexto || "—"} (${r.lugar || r.estado})`,
         ])
       );
     });
@@ -189,7 +268,6 @@ async function renderGastoNuevo(root) {
             fechaInicio: fechaInicio.value,
             fechaFin: fechaFin.value,
             motivo: motivo.value.trim(),
-            anticipo: Number(anticipo.value || 0),
             rutasIds,
             proveedoresVisitados,
           });
@@ -204,7 +282,7 @@ async function renderGastoNuevo(root) {
 async function renderGastoDetalle(root, gastoId) {
   clear(root);
   const { cabecera, lineas } = await store.getGasto(gastoId);
-  const totales = store.computeGastoTotales({ cabecera, lineas });
+  const totales = store.computeGastoTotales({ lineas });
   const readonly = cabecera.estado !== "Borrador";
   const proveedores = await store.listProveedores();
   const provById = Object.fromEntries(proveedores.map((p) => [p.id, p]));
@@ -213,14 +291,20 @@ async function renderGastoDetalle(root, gastoId) {
   root.appendChild(el("h1", {}, cabecera.ciudadViaje));
 
   const summary = el("div", { class: "card" }, [
-    el("div", { class: "list-row" }, [el("div", {}, "Total gastos"), el("div", { class: "amt" }, fmtMoney(totales.total))]),
-    el("div", { class: "list-row" }, [el("div", {}, "Anticipo"), el("div", {}, fmtMoney(cabecera.anticipo))]),
     el("div", { class: "list-row" }, [
-      el("div", {}, totales.valorADevolver >= 0 ? "La empresa reembolsa" : "El viajero devuelve"),
-      el("div", { class: "amt" }, fmtMoney(Math.abs(totales.valorADevolver))),
+      el("div", {}, "Fechas"),
+      el("div", { class: "amt" }, `${fmtFecha(cabecera.fechaInicio)} – ${fmtFecha(cabecera.fechaFin)}`),
     ]),
+    el("div", { class: "list-row" }, [
+      el("div", {}, "Semana"),
+      el("div", {}, cabecera.fechaInicio ? `Semana ${store.isoWeek(cabecera.fechaInicio.slice(0, 10))}` : "-"),
+    ]),
+    el("div", { class: "list-row" }, [el("div", {}, "Total gastos"), el("div", { class: "amt" }, fmtMoney(totales.total))]),
     el("div", { class: "list-row" }, [el("div", {}, "Estado"), el("span", { class: `badge ${estadoBadge[cabecera.estado] || "info"}` }, cabecera.estado)]),
   ]);
+  if (totales.totalKm > 0) {
+    summary.appendChild(el("div", { class: "list-row" }, [el("div", {}, "Km recorridos"), el("div", {}, `${totales.totalKm} km`)]));
+  }
   if (cabecera.proveedoresVisitados?.length) {
     const nombres = cabecera.proveedoresVisitados.map((id) => provById[id]?.nombre).filter(Boolean).join(", ");
     summary.appendChild(el("div", { class: "list-row" }, [el("div", {}, "Proveedores visitados"), el("div", { style: "text-align:right;max-width:60%" }, nombres || "-")]));
@@ -238,7 +322,7 @@ async function renderGastoDetalle(root, gastoId) {
           el("div", { class: "list-row" }, [
             el("div", {}, [
               el("div", { class: "title" }, r.proveedor?.nombre || r.proveedorNuevoTexto || "—"),
-              el("div", { class: "sub" }, `${r.fecha} · ${r.lugar || ""}`),
+              el("div", { class: "sub" }, `${fmtFecha(r.fecha)} · ${r.lugar || ""}`),
             ]),
             el("span", { class: `badge ${rutaEstadoBadge[r.estado] || "info"}` }, r.estado),
           ])
@@ -256,7 +340,7 @@ async function renderGastoDetalle(root, gastoId) {
           class: "btn secondary",
           onclick: async () => {
             const blob = await buildGastoPdf({ cabecera, lineas, provById, totales });
-            downloadPdf(blob, `Gastos_${cabecera.viajero || "viaje"}_${cabecera.fechaInicio}.pdf`);
+            downloadPdf(blob, `Gastos_${cabecera.viajero || "viaje"}_${(cabecera.fechaInicio || "").slice(0, 10)}.pdf`);
           },
         },
         "Descargar PDF consolidado"
@@ -325,10 +409,13 @@ async function renderGastoDetalle(root, gastoId) {
         ]),
       ]);
       if (l.tipo === "Movilización propia (Km)") {
-        const kmTotal = Number(l.kmFinal || 0) - Number(l.kmInicio || 0);
+        const kmTotal = Math.max(0, Number(l.kmFinal || 0) - Number(l.kmInicio || 0));
         lineaCard.appendChild(
           el("div", { class: "hint" }, `Km inicio: ${l.kmInicio ?? "-"} · Km final: ${l.kmFinal ?? "-"} · Total: ${kmTotal} km`)
         );
+      }
+      if (l.comentario) {
+        lineaCard.appendChild(el("div", { class: "hint" }, `Comentario: ${l.comentario}`));
       }
 
       if (puedeRevisar) {
@@ -391,11 +478,19 @@ function renderLineaCard(l, provById = {}, { onClick } = {}) {
   const provNombre = l.proveedorId ? provById[l.proveedorId]?.nombre : null;
   const estadoLinea = l.estadoLinea || "Pendiente";
   const badgeClass = estadoLinea === "Aprobado" ? "ok" : estadoLinea === "Rechazado" ? "bad" : "info";
-  return el("div", { class: "expense-line", onclick: onClick || undefined, style: onClick ? "cursor:pointer" : "" }, [
-    el("div", { class: "head" }, [el("div", {}, `${l.fecha || ""} · ${l.tipo}`), el("div", { class: "amt" }, `$${Number(l.monto || 0).toFixed(2)}`)]),
-    el("div", { class: "hint" }, [l.lugar, l.proveedorServicio, provNombre ? `Visita: ${provNombre}` : null].filter(Boolean).join(" · ")),
+  const isKm = l.tipo === "Movilización propia (Km)";
+  const hintParts = isKm
+    ? [`Km ${l.kmInicio ?? "-"} → ${l.kmFinal ?? "-"} (${Math.max(0, Number(l.kmFinal || 0) - Number(l.kmInicio || 0))} km)`]
+    : [l.lugar, l.proveedorServicio, provNombre ? `Visita: ${provNombre}` : null];
+  const wrap = el("div", { class: "expense-line", onclick: onClick || undefined, style: onClick ? "cursor:pointer" : "" }, [
+    el("div", { class: "head" }, [el("div", {}, `${fmtFecha(l.fecha)} · ${l.tipo}`), el("div", { class: "amt" }, `$${Number(l.monto || 0).toFixed(2)}`)]),
+    el("div", { class: "hint" }, hintParts.filter(Boolean).join(" · ")),
     el("span", { class: `badge ${badgeClass}`, style: "margin-top:6px" }, estadoLinea),
   ]);
+  if (l.comentario) {
+    wrap.appendChild(el("div", { class: "hint", style: "margin-top:4px" }, `💬 ${l.comentario}`));
+  }
+  return wrap;
 }
 
 async function renderLineaForm(root, cabecera, existing = null) {
@@ -409,7 +504,9 @@ async function renderLineaForm(root, cabecera, existing = null) {
     {},
     TIPOS_GASTO.map((t) => el("option", { value: t, selected: existing?.tipo === t ? "selected" : undefined }, t))
   );
-  const fecha = el("input", { type: "date", value: (existing?.fecha || new Date().toISOString()).slice(0, 10) });
+  // La fecha ya viene precargada con la fecha de inicio de la orden de
+  // viaje — casi siempre coincide con la línea; el viajero la ajusta si no.
+  const fecha = el("input", { type: "date", value: (existing?.fecha || cabecera.fechaInicio || new Date().toISOString()).slice(0, 10) });
   const lugar = el("input", { type: "text", placeholder: "Lugar", value: existing?.lugar || "" });
   const proveedorServicio = el("input", { type: "text", placeholder: "Proveedor de servicio (ej. hotel, restaurante)", value: existing?.proveedorServicio || "" });
   const documento = el("input", { type: "text", placeholder: "N.º de factura", value: existing?.documento || "" });
@@ -424,15 +521,29 @@ async function renderLineaForm(root, cabecera, existing = null) {
   const monto = el("input", { type: "number", placeholder: "0.00", step: "0.01", value: existing?.monto ?? "" });
   const kmInicio = el("input", { type: "number", value: existing?.kmInicio ?? "" });
   const kmFinal = el("input", { type: "number", value: existing?.kmFinal ?? "" });
-  const kmWrap = el("div", { class: "grid-2" }, [
-    el("div", {}, [el("label", { class: "field-label" }, "Km inicio"), kmInicio]),
-    el("div", {}, [el("label", { class: "field-label" }, "Km final"), kmFinal]),
+  const kmTotalHint = el("div", { class: "hint" }, "");
+  function refreshKmTotal() {
+    const total = Number(kmFinal.value || 0) - Number(kmInicio.value || 0);
+    kmTotalHint.textContent = kmInicio.value !== "" && kmFinal.value !== "" ? `Total recorrido: ${Math.max(0, total)} km` : "";
+  }
+  kmInicio.addEventListener("input", refreshKmTotal);
+  kmFinal.addEventListener("input", refreshKmTotal);
+  const kmWrap = el("div", {}, [
+    el("div", { class: "grid-2" }, [
+      el("div", {}, [el("label", { class: "field-label" }, "Km inicio"), kmInicio]),
+      el("div", {}, [el("label", { class: "field-label" }, "Km final"), kmFinal]),
+    ]),
+    kmTotalHint,
   ]);
   const montoWrap = el("div", {}, [el("label", { class: "field-label" }, "Monto ($)"), monto]);
+  const comentario = el("textarea", { placeholder: "Comentario (opcional)" });
+  comentario.value = existing?.comentario || "";
 
   function refreshTipoFields() {
-    kmWrap.style.display = tipoSelect.value === TIPOS_GASTO[0] ? "grid" : "none";
-    montoWrap.style.display = tipoSelect.value === TIPOS_GASTO[0] ? "none" : "block";
+    const isKm = tipoSelect.value === TIPOS_GASTO[0];
+    kmWrap.style.display = isKm ? "block" : "none";
+    montoWrap.style.display = isKm ? "none" : "block";
+    refreshKmTotal();
   }
   tipoSelect.addEventListener("change", refreshTipoFields);
 
@@ -450,11 +561,14 @@ async function renderLineaForm(root, cabecera, existing = null) {
     el("label", { class: "field-label" }, "Proveedor visitado en esta parada (opcional)"),
     proveedorSelect,
     kmWrap,
-    montoWrap
+    montoWrap,
+    el("label", { class: "field-label" }, "Comentario"),
+    comentario
   );
   root.appendChild(card);
   refreshTipoFields();
 
+  // Foto de factura/recibo — aplica a todo tipo excepto kilometraje.
   const photoCard = el("div", { class: "card" });
   photoCard.appendChild(el("label", { class: "field-label", style: "margin-top:0" }, "Foto de factura / recibo"));
   const photoRow = el("div", { class: "photo-row" });
@@ -479,6 +593,57 @@ async function renderLineaForm(root, cabecera, existing = null) {
   }
   refreshPhoto();
 
+  // Fotos del odómetro — solo para kilometraje, una al inicio y otra al final.
+  const kmPhotoCard = el("div", { class: "card" });
+  kmPhotoCard.appendChild(el("label", { class: "field-label", style: "margin-top:0" }, "Foto Km inicio (odómetro)"));
+  const photoRowKmInicio = el("div", { class: "photo-row" });
+  kmPhotoCard.appendChild(photoRowKmInicio);
+  kmPhotoCard.appendChild(el("label", { class: "field-label" }, "Foto Km final (odómetro)"));
+  const photoRowKmFinal = el("div", { class: "photo-row" });
+  kmPhotoCard.appendChild(photoRowKmFinal);
+  root.appendChild(kmPhotoCard);
+  let photoIdKmInicio = existing?.photoIdKmInicio || null;
+  let photoIdKmFinal = existing?.photoIdKmFinal || null;
+  function refreshKmPhotos() {
+    renderPhotoRow(photoRowKmInicio, photoIdKmInicio ? [photoIdKmInicio] : [], {
+      max: 1,
+      onAdd: async () => {
+        const pid = await capturePhoto();
+        if (pid) {
+          photoIdKmInicio = pid;
+          refreshKmPhotos();
+        }
+      },
+      onRemove: () => {
+        photoIdKmInicio = null;
+        refreshKmPhotos();
+      },
+    });
+    renderPhotoRow(photoRowKmFinal, photoIdKmFinal ? [photoIdKmFinal] : [], {
+      max: 1,
+      onAdd: async () => {
+        const pid = await capturePhoto();
+        if (pid) {
+          photoIdKmFinal = pid;
+          refreshKmPhotos();
+        }
+      },
+      onRemove: () => {
+        photoIdKmFinal = null;
+        refreshKmPhotos();
+      },
+    });
+  }
+  refreshKmPhotos();
+
+  function refreshPhotoCards() {
+    const isKm = tipoSelect.value === TIPOS_GASTO[0];
+    photoCard.style.display = isKm ? "none" : "block";
+    kmPhotoCard.style.display = isKm ? "block" : "none";
+  }
+  tipoSelect.addEventListener("change", refreshPhotoCards);
+  refreshPhotoCards();
+
   root.appendChild(
     el(
       "button",
@@ -488,6 +653,11 @@ async function renderLineaForm(root, cabecera, existing = null) {
           const isKm = tipoSelect.value === TIPOS_GASTO[0];
           if (!isKm && !documento.value.trim()) return toast("Ingresa el N.º de factura", "error");
           if (!isKm && !photoId) return toast("Adjunta la foto de la factura o recibo", "error");
+          if (isKm) {
+            if (kmInicio.value === "" || kmFinal.value === "") return toast("Ingresa el Km de inicio y el Km final", "error");
+            if (Number(kmFinal.value) < Number(kmInicio.value)) return toast("El Km final no puede ser menor al Km inicial", "error");
+            if (!photoIdKmInicio || !photoIdKmFinal) return toast("Adjunta la foto del odómetro al inicio y al final", "error");
+          }
           await store.addGastoLinea(cabecera.id, {
             id: existing?.id,
             _itemId: existing?._itemId,
@@ -500,7 +670,10 @@ async function renderLineaForm(root, cabecera, existing = null) {
             monto: monto.value,
             kmInicio: kmInicio.value,
             kmFinal: kmFinal.value,
-            photoId,
+            comentario: comentario.value.trim(),
+            photoId: isKm ? null : photoId,
+            photoIdKmInicio: isKm ? photoIdKmInicio : null,
+            photoIdKmFinal: isKm ? photoIdKmFinal : null,
           });
           toast(existing ? "Línea actualizada" : "Línea de gasto agregada", "success");
           renderGastoDetalle(root, cabecera.id);

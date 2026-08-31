@@ -355,14 +355,37 @@ export async function submitChecklist(checklistId, { firmaProductorBlob, firmaAu
 // ---------------------------------------------------------------------------
 // Seguimiento Semanal
 // ---------------------------------------------------------------------------
-function isoWeek(dateStr) {
+function isoWeekInfo(dateStr) {
   const d = new Date(dateStr + "T00:00:00");
   const target = new Date(d.valueOf());
   const dayNr = (d.getDay() + 6) % 7;
   target.setDate(target.getDate() - dayNr + 3);
-  const firstThursday = new Date(target.getFullYear(), 0, 4);
+  const isoYear = target.getFullYear();
+  const firstThursday = new Date(isoYear, 0, 4);
   const diff = target - firstThursday;
-  return 1 + Math.round(diff / (7 * 24 * 3600 * 1000));
+  const week = 1 + Math.round(diff / (7 * 24 * 3600 * 1000));
+  return { week, year: isoYear };
+}
+
+export function isoWeek(dateStr) {
+  return isoWeekInfo(dateStr).week;
+}
+
+export function isoWeekYear(dateStr) {
+  return isoWeekInfo(dateStr).year;
+}
+
+// Rango de fechas (lunes a domingo) de una semana ISO — para mostrar
+// encabezados legibles al agrupar Gastos de Viaje por semana.
+export function isoWeekRange(year, week) {
+  const simple = new Date(year, 0, 1 + (week - 1) * 7);
+  const dow = simple.getDay() || 7;
+  const monday = new Date(simple);
+  monday.setDate(simple.getDate() - dow + 1);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  const fmt = (d) => d.toISOString().slice(0, 10);
+  return { inicio: fmt(monday), fin: fmt(sunday) };
 }
 
 export async function listSeguimientos() {
@@ -494,7 +517,7 @@ export async function addGastoLinea(gastoId, fields) {
   if (CONFIG.useMock) {
     await idb.put("gastosDet", rec);
   } else {
-    const graphRec = await resolvePhotoFields(rec, ["photoId"]);
+    const graphRec = await resolvePhotoFields(rec, ["photoId", "photoIdKmInicio", "photoIdKmFinal"]);
     if (rec._itemId) await graph.graphUpdateItemById("gastosDetalle", rec._itemId, toGraphFields(graphRec));
     else if (fields.id) await graph.graphUpdateItemByAppId("gastosDetalle", fields.id, toGraphFields(graphRec));
     else await graph.graphCreateItem("gastosDetalle", toGraphFields(graphRec));
@@ -512,10 +535,35 @@ export async function deleteGastoLinea(linea) {
   if (linea._itemId) await graph.graphDeleteItemById("gastosDetalle", linea._itemId);
 }
 
-export function computeGastoTotales({ cabecera, lineas }) {
+export function computeGastoTotales({ lineas }) {
   const total = lineas.reduce((s, l) => s + Number(l.monto || 0), 0);
-  const valorADevolver = Number(cabecera.anticipo || 0) + Number(cabecera.saldoAnterior || 0) - total;
-  return { total, valorADevolver };
+  const totalKm = lineas
+    .filter((l) => l.tipo === "Movilización propia (Km)")
+    .reduce((s, l) => s + Math.max(0, Number(l.kmFinal || 0) - Number(l.kmInicio || 0)), 0);
+  return { total, totalKm };
+}
+
+// El viático es fijo por semana (no por viaje individual) — cada técnico
+// recibe un anticipo semanal y se liquida contra el total de todos sus
+// viajes de esa semana (ver store.listGastosConTotales y CONFIG.viaticoSemanal).
+export function computeSemanaTotales(totalGastosSemana) {
+  const anticipo = CONFIG.viaticoSemanal;
+  return { anticipo, total: totalGastosSemana, valorADevolver: anticipo - totalGastosSemana };
+}
+
+// Trae todos los viajes junto con el total ya gastado en cada uno (suma de
+// sus líneas), en una sola pasada — para poder agruparlos por semana sin
+// tener que pedir el detalle viaje por viaje.
+export async function listGastosConTotales() {
+  const [cabeceras, todasLineas] = await Promise.all([
+    listGastos(),
+    CONFIG.useMock ? idb.getAll("gastosDet") : graph.graphGetItems("gastosDetalle"),
+  ]);
+  const totalPorGasto = {};
+  todasLineas.forEach((l) => {
+    totalPorGasto[l.gastoId] = (totalPorGasto[l.gastoId] || 0) + Number(l.monto || 0);
+  });
+  return cabeceras.map((c) => ({ ...c, totalLineas: totalPorGasto[c.id] || 0 }));
 }
 
 // Quién debe aprobar una línea según su tipo: el kilometraje siempre lo

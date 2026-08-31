@@ -146,7 +146,9 @@ export async function buildGastoPdf({ cabecera, lineas, provById = {}, totales }
       l.proveedorId ? provById[l.proveedorId]?.nombre || "" : "",
       // "→" no existe en la fuente estándar de jsPDF (Helvetica/WinAnsi) y sale
       // corrupto en el PDF; se usa un guion simple en su lugar.
-      l.tipo === "Movilización propia (Km)" ? `${l.kmInicio ?? ""} - ${l.kmFinal ?? ""}` : "",
+      l.tipo === "Movilización propia (Km)"
+        ? `${l.kmInicio ?? ""} - ${l.kmFinal ?? ""} (${Math.max(0, Number(l.kmFinal || 0) - Number(l.kmInicio || 0))} km)`
+        : "",
       `$${Number(l.monto || 0).toFixed(2)}`,
     ]),
     styles: { fontSize: 7.5, cellPadding: 4, overflow: "linebreak", valign: "middle" },
@@ -168,16 +170,11 @@ export async function buildGastoPdf({ cabecera, lineas, provById = {}, totales }
   doc.setFontSize(10.5);
   doc.text(`Total gastos: $${totales.total.toFixed(2)}`, margin, y);
   y += 14;
-  doc.text(`Anticipo recibido: $${Number(cabecera.anticipo || 0).toFixed(2)}    Saldo anterior: $${Number(cabecera.saldoAnterior || 0).toFixed(2)}`, margin, y);
-  y += 14;
-  doc.text(
-    totales.valorADevolver >= 0
-      ? `La empresa reembolsa: $${totales.valorADevolver.toFixed(2)}`
-      : `El viajero devuelve: $${Math.abs(totales.valorADevolver).toFixed(2)}`,
-    margin,
-    y
-  );
-  y += 26;
+  if (totales.totalKm > 0) {
+    doc.text(`Km recorridos: ${totales.totalKm} km`, margin, y);
+    y += 14;
+  }
+  y += 12;
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9.5);
