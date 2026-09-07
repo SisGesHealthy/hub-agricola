@@ -221,9 +221,9 @@ export async function buildGastoPdf({ cabecera, lineas, provById = {}, totales }
 }
 
 // Reporte global: portada con una tabla resumen de todos los viajes
-// seleccionados (y su gran total), seguida del detalle completo de cada uno
-// en su propia página — para no tener que entrar viaje por viaje a
-// descargar/imprimir cuando se necesita revisar varios de una sola vez.
+// seleccionados (y su gran total), seguida de UNA sola tabla con el detalle
+// de todas sus líneas juntas (columna "Viaje" para saber de cuál viene cada
+// una) — así no hay que entrar viaje por viaje para ver el detalle completo.
 export async function buildGastosGlobalPdf({ viajes, provById = {} }) {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit: "pt", format: "letter" });
@@ -258,11 +258,67 @@ export async function buildGastosGlobalPdf({ viajes, provById = {} }) {
     footStyles: { fillColor: [230, 230, 230], textColor: [20, 20, 20], fontStyle: "bold" },
     columnStyles: { 4: { halign: "right" } },
   });
+  y = doc.lastAutoTable.finalY + 22;
 
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12);
+  doc.text("Detalle de todas las líneas", margin, y);
+  y += 10;
+
+  // "Viaje" = el título con el que se identifica el viaje en la lista de
+  // Gastos (ciudadViaje) — la referencia que pidió el usuario para saber de
+  // cuál gasto viene cada línea al verlas todas juntas.
+  const todasLineas = [];
   viajes.forEach((v) => {
-    doc.addPage();
-    appendGastoPdfContent(doc, v);
+    (v.lineas || []).forEach((l) => todasLineas.push({ ...l, __viaje: v.cabecera.ciudadViaje || v.cabecera.motivo || "-" }));
   });
+  todasLineas.sort((a, b) => (a.fecha || "").localeCompare(b.fecha || ""));
+
+  doc.autoTable({
+    startY: y,
+    margin: { left: margin, right: margin },
+    head: [["Viaje", "Fecha", "Tipo", "Lugar", "Proveedor/Serv.", "N.º factura", "Prov. visitado", "Km", "Monto", "Observaciones"]],
+    body: todasLineas.map((l) => [
+      l.__viaje,
+      (l.fecha || "").slice(0, 10),
+      l.tipo || "",
+      l.lugar || "",
+      l.proveedorServicio || "",
+      l.documento || "",
+      l.proveedorId ? provById[l.proveedorId]?.nombre || "" : "",
+      l.tipo === "Movilización propia (Km)"
+        ? `${l.kmInicio ?? ""} - ${l.kmFinal ?? ""} (${Math.max(0, Number(l.kmFinal || 0) - Number(l.kmInicio || 0))} km)`
+        : "",
+      `$${Number(l.monto || 0).toFixed(2)}`,
+      l.comentario || "",
+    ]),
+    styles: { fontSize: 6.5, cellPadding: 3, overflow: "linebreak", valign: "middle" },
+    headStyles: { fillColor: [31, 78, 61], fontSize: 6.5 },
+    columnStyles: {
+      0: { cellWidth: 62 },
+      1: { cellWidth: 38 },
+      2: { cellWidth: 52 },
+      3: { cellWidth: 38 },
+      4: { cellWidth: 48 },
+      5: { cellWidth: 38 },
+      6: { cellWidth: 44 },
+      7: { cellWidth: 44 },
+      8: { cellWidth: 36, halign: "right" },
+      9: { cellWidth: 92 },
+    },
+  });
+  y = doc.lastAutoTable.finalY + 18;
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10.5);
+  doc.text(`Total general: $${granTotal.toFixed(2)}`, margin, y);
+  const totalKm = todasLineas
+    .filter((l) => l.tipo === "Movilización propia (Km)")
+    .reduce((s, l) => s + Math.max(0, Number(l.kmFinal || 0) - Number(l.kmInicio || 0)), 0);
+  if (totalKm > 0) {
+    y += 14;
+    doc.text(`Km recorridos: ${totalKm} km`, margin, y);
+  }
 
   return doc.output("blob");
 }
