@@ -3,14 +3,15 @@ import * as store from "./store.js";
 import { capturePhoto, renderPhotoRow, SignaturePad, toast, fmtMoney } from "./components.js";
 import { getCurrentUser } from "./auth.js";
 import { CONFIG } from "./config.js";
-import { buildGastoPdf, downloadPdf } from "./pdf.js";
+import { buildGastoPdf, downloadPdf, sharePdf } from "./pdf.js";
 
 const estadoBadge = { Borrador: "info", Enviado: "warn", Aprobado: "ok", Revisado: "ok", Rechazado: "bad", Pagado: "ok" };
 const rutaEstadoBadge = { Planificada: "info", Realizada: "ok", Reprogramada: "warn", Cancelada: "bad" };
-// El PDF consolidado (para grapar facturas físicas) solo tiene sentido una
-// vez que el gasto ya pasó la aprobación — antes podría seguir cambiando.
-const ESTADOS_EXPORTABLES = ["Aprobado", "Revisado", "Pagado"];
 const TIPOS_GASTO = ["Movilización propia (Km)", "Hospedaje", "Alimentación", "Atenciones", "Peaje", "Varios"];
+// Igual que ESTADOS_APROBADOS en pdf.js — solo para elegir el texto del
+// aviso junto al botón de descargar/compartir (el PDF ya se puede generar
+// en cualquier estado, marcado como preliminar si aún no está aprobado).
+const ESTADOS_APROBADOS_HINT = ["Aprobado", "Revisado", "Pagado"];
 
 // "2026-08-14" -> "14/08/2026" — las fechas en bruto (ISO, a veces con hora
 // completa porque SharePoint las devuelve así) se prestaban a confusión.
@@ -332,21 +333,47 @@ async function renderGastoDetalle(root, gastoId) {
     }
   }
 
-  if (ESTADOS_EXPORTABLES.includes(cabecera.estado)) {
+  {
+    const pdfFilename = `Gastos_${cabecera.viajero || "viaje"}_${(cabecera.fechaInicio || "").slice(0, 10)}.pdf`;
+    root.appendChild(
+      el("div", { class: "btn-row" }, [
+        el(
+          "button",
+          {
+            class: "btn secondary",
+            onclick: async () => {
+              const blob = await buildGastoPdf({ cabecera, lineas, provById, totales });
+              downloadPdf(blob, pdfFilename);
+            },
+          },
+          "🖨 Descargar / Imprimir"
+        ),
+        el(
+          "button",
+          {
+            class: "btn secondary",
+            onclick: async () => {
+              const blob = await buildGastoPdf({ cabecera, lineas, provById, totales });
+              const compartido = await sharePdf(blob, pdfFilename);
+              if (!compartido) {
+                downloadPdf(blob, pdfFilename);
+                toast("Este dispositivo no permite compartir directamente — se descargó el PDF", "info");
+              }
+            },
+          },
+          "📤 Compartir"
+        ),
+      ])
+    );
     root.appendChild(
       el(
-        "button",
-        {
-          class: "btn secondary",
-          onclick: async () => {
-            const blob = await buildGastoPdf({ cabecera, lineas, provById, totales });
-            downloadPdf(blob, `Gastos_${cabecera.viajero || "viaje"}_${(cabecera.fechaInicio || "").slice(0, 10)}.pdf`);
-          },
-        },
-        "Descargar PDF consolidado"
+        "div",
+        { class: "hint" },
+        ESTADOS_APROBADOS_HINT.includes(cabecera.estado)
+          ? "Imprime este PDF y adjunta detrás las facturas físicas de cada línea."
+          : `El viaje todavía está en estado "${cabecera.estado}" — el PDF sale marcado como reporte preliminar, no aprobado.`
       )
     );
-    root.appendChild(el("div", { class: "hint" }, "Imprime este PDF y adjunta detrás las facturas físicas de cada línea."));
     root.appendChild(el("div", { style: "height:10px" }));
   }
 

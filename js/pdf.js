@@ -102,10 +102,16 @@ export async function buildChecklistPdf({ cabecera, items, proveedor, scoring })
   return doc.output("blob");
 }
 
+// Estados en los que la liquidación ya es definitiva. En cualquier otro
+// estado el PDF igual se puede generar (para imprimir/compartir un avance),
+// pero se marca como preliminar — ver buildGastoPdf.
+const ESTADOS_APROBADOS = ["Aprobado", "Revisado", "Pagado"];
+
 // PDF consolidado de un viaje de Gastos de Viaje: encabezado del viaje +
 // tabla de todas las líneas + totales. Pensado para imprimirse y grapar las
-// facturas físicas detrás — solo tiene sentido una vez que el gasto ya fue
-// aprobado (ver el botón en gastos.js, que lo restringe a ese estado).
+// facturas físicas detrás. Se puede generar en cualquier estado — si el
+// viaje todavía no está aprobado, se marca como "reporte preliminar" para
+// que quede claro que los montos pueden seguir cambiando.
 export async function buildGastoPdf({ cabecera, lineas, provById = {}, totales }) {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit: "pt", format: "letter" });
@@ -116,6 +122,15 @@ export async function buildGastoPdf({ cabecera, lineas, provById = {}, totales }
   doc.setFontSize(15);
   doc.text("LIQUIDACIÓN DE GASTOS DE VIAJE", margin, y);
   y += 18;
+
+  if (!ESTADOS_APROBADOS.includes(cabecera.estado)) {
+    doc.setTextColor(179, 38, 30);
+    doc.setFontSize(10.5);
+    doc.text(`AVISO: REPORTE PRELIMINAR — estado actual "${cabecera.estado || "Borrador"}", aún no aprobado. Los montos pueden cambiar.`, margin, y);
+    doc.setTextColor(0, 0, 0);
+    y += 16;
+  }
+
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10.5);
   doc.text(`Viajero: ${cabecera.viajero || "-"}    Ciudad base: ${cabecera.ciudadBase || "-"}`, margin, y);
@@ -326,4 +341,19 @@ export function downloadPdf(blob, filename) {
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+
+// Comparte el PDF directamente (WhatsApp, correo, etc.) usando la Web Share
+// API del celular. Devuelve true si se pudo compartir (o el usuario canceló
+// el diálogo), false si el navegador no lo soporta — en ese caso el llamador
+// debe recurrir a downloadPdf como respaldo.
+export async function sharePdf(blob, filename) {
+  const file = new File([blob], filename, { type: "application/pdf" });
+  if (!navigator.canShare || !navigator.canShare({ files: [file] })) return false;
+  try {
+    await navigator.share({ files: [file], title: filename });
+  } catch (e) {
+    if (e.name !== "AbortError") return false; // el usuario solo canceló, no es un fallo real
+  }
+  return true;
 }
