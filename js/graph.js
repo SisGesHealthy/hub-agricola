@@ -74,6 +74,10 @@ const FIELD_MAPS = {
     // Agregada después del import inicial — liga el viaje con las visitas de
     // Ruta que lo componen (ver store.createGasto / gastos.js).
     rutasIds: "rutasIds",
+    // Aprobación por viaje (no por línea) — hasta 2 aprobaciones según el
+    // tipo de gastos que tenga el viaje (ver store.reviewGastoAprobacion).
+    aprobComprasEstado: "aprobComprasEstado", aprobComprasRevisor: "aprobComprasRevisor",
+    aprobThEstado: "aprobThEstado", aprobThRevisor: "aprobThRevisor",
   },
   gastosDetalle: {
     gastoId: "field_1", fecha: "field_2", lugar: "field_3", proveedorServicio: "field_4",

@@ -506,9 +506,6 @@ export async function addGastoLinea(gastoId, fields) {
     id,
     gastoId,
     monto,
-    // Cada línea se aprueba por separado (ver reviewGastoLinea) — una nueva
-    // línea, o una que se está editando, vuelve a quedar Pendiente.
-    estadoLinea: fields.estadoLinea || "Pendiente",
     // Columna Number en SharePoint: "" (línea sin kilometraje) la rechaza
     // con 400 badArgument; hay que mandar null, no texto vacío.
     kmInicio: fields.kmInicio === "" || fields.kmInicio == null ? null : Number(fields.kmInicio),
@@ -566,57 +563,56 @@ export async function listGastosConTotales() {
   return cabeceras.map((c) => ({ ...c, totalLineas: totalPorGasto[c.id] || 0 }));
 }
 
-// Quién debe aprobar una línea según su tipo: el kilometraje siempre lo
-// aprueba Talento Humano (sin importar qué más traiga el viaje); cualquier
-// otro tipo de gasto (hospedaje, alimentación, etc.) lo aprueba Compras.
-export function computeAprobadorLinea(tipo) {
-  return tipo === "Movilización propia (Km)" ? CONFIG.approvers.kilometraje : CONFIG.approvers.general;
+// En la práctica, Compras y Talento Humano verifican el viaje contra el PDF
+// impreso y las facturas físicas — no tiene sentido pedirles que aprueben
+// línea por línea en la app. Cada viaje necesita hasta 2 aprobaciones (una
+// por cada tipo de gasto que contenga), no una por cada línea.
+export function computeAprobacionesRequeridas(lineas) {
+  return {
+    compras: lineas.some((l) => l.tipo !== "Movilización propia (Km)"),
+    th: lineas.some((l) => l.tipo === "Movilización propia (Km)"),
+  };
 }
 
-async function patchGastoLinea(linea, patch) {
-  if (CONFIG.useMock) {
-    await idb.put("gastosDet", { ...linea, ...patch });
-  } else if (linea._itemId) {
-    await graph.graphUpdateItemById("gastosDetalle", linea._itemId, toGraphFields(patch));
-  } else {
-    await graph.graphUpdateItemByAppId("gastosDetalle", linea.id, toGraphFields({ ...patch, id: linea.id }));
-  }
-}
+// Aprueba o rechaza la parte de Compras ("compras") o de Talento Humano
+// ("th") de un viaje. Rechazar cualquiera de las dos manda todo el viaje de
+// vuelta a Borrador para que el viajero corrija y reenvíe (ver submitGasto,
+// que resetea ambas aprobaciones a Pendiente). El viaje queda Aprobado en
+// cuanto están aprobadas todas las que le aplican según sus líneas.
+export async function reviewGastoAprobacion(cabecera, lineas, aprobador, decision, { comentario = "", revisor = "" } = {}) {
+  const prefix = aprobador === "compras" ? "aprobCompras" : "aprobTh";
+  const merged = { ...cabecera, [`${prefix}Estado`]: decision, [`${prefix}Revisor`]: revisor };
 
-// Aprueba o rechaza UNA línea (no todo el viaje) y recalcula el estado del
-// viaje completo: queda Aprobado solo cuando TODAS las líneas están
-// Aprobadas; en cuanto UNA se rechaza, el viaje entero pasa a Rechazado (el
-// viajero corrige y reenvía todo el viaje — ver submitGasto, que resetea
-// todas las líneas a Pendiente). Mientras haya líneas sin resolver, sigue Enviado.
-export async function reviewGastoLinea(gastoId, linea, decision, { comentario = "", revisor = "" } = {}) {
-  await patchGastoLinea(linea, {
-    estadoLinea: decision,
-    revisorLinea: revisor,
-    comentarioLinea: decision === "Rechazado" ? comentario : "",
-  });
-
-  const { cabecera, lineas } = await getGasto(gastoId);
   let estado = cabecera.estado;
   let comentarioRechazo = cabecera.comentarioRechazo || "";
-  const rechazadas = lineas.filter((l) => l.estadoLinea === "Rechazado");
-  if (rechazadas.length > 0) {
+  if (decision === "Rechazado") {
     estado = "Rechazado";
-    comentarioRechazo = rechazadas.map((l) => `${l.tipo}: ${l.comentarioLinea || "sin motivo"}`).join(" · ");
-  } else if (lineas.length > 0 && lineas.every((l) => l.estadoLinea === "Aprobado")) {
-    estado = "Aprobado";
+    comentarioRechazo = comentario;
+  } else {
+    const req = computeAprobacionesRequeridas(lineas);
+    const comprasOk = !req.compras || merged.aprobComprasEstado === "Aprobado";
+    const thOk = !req.th || merged.aprobThEstado === "Aprobado";
+    if (comprasOk && thOk) estado = "Aprobado";
   }
-  return updateGasto({ ...cabecera, estado, comentarioRechazo });
+  return updateGasto({ ...merged, estado, comentarioRechazo });
 }
 
 // Envía (o reenvía tras una corrección) el viaje completo a aprobación:
-// resetea el estado de TODAS las líneas a Pendiente, incluidas las que ya
-// habían sido aprobadas antes, para que el viaje vuelva a pasar por revisión
-// completa (se eligió mantenerlo simple en vez de aprobación parcial).
-export async function submitGasto(cabecera, lineas) {
-  for (const l of lineas) {
-    await patchGastoLinea(l, { estadoLinea: "Pendiente", revisorLinea: "", comentarioLinea: "" });
-  }
-  return updateGasto({ ...cabecera, estado: "Enviado", firmaFecha: new Date().toISOString(), comentarioRechazo: "" });
+// resetea las dos aprobaciones (Compras y Talento Humano) a Pendiente,
+// incluida la que ya estuviera aprobada antes, para que el viaje vuelva a
+// pasar por revisión completa (se eligió mantenerlo simple en vez de
+// aprobación parcial).
+export async function submitGasto(cabecera) {
+  return updateGasto({
+    ...cabecera,
+    estado: "Enviado",
+    firmaFecha: new Date().toISOString(),
+    comentarioRechazo: "",
+    aprobComprasEstado: "Pendiente",
+    aprobComprasRevisor: "",
+    aprobThEstado: "Pendiente",
+    aprobThRevisor: "",
+  });
 }
 
 // ---------------------------------------------------------------------------

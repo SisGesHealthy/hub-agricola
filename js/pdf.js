@@ -148,7 +148,7 @@ function appendGastoPdfContent(doc, { cabecera, lineas, provById = {}, totales }
     doc.text(provLines, margin, y);
     y += provLines.length * 12 + 2;
   }
-  const revisores = [...new Set(lineas.map((l) => l.revisorLinea).filter(Boolean))].join(", ");
+  const revisores = [cabecera.aprobComprasRevisor, cabecera.aprobThRevisor].filter(Boolean).join(", ");
   doc.text(`Estado: ${cabecera.estado || "-"}    Aprobado por: ${revisores || "-"}`, margin, y);
   y += 20;
 
