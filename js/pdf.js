@@ -107,15 +107,13 @@ export async function buildChecklistPdf({ cabecera, items, proveedor, scoring })
 // pero se marca como preliminar — ver buildGastoPdf.
 const ESTADOS_APROBADOS = ["Aprobado", "Revisado", "Pagado"];
 
-// PDF consolidado de un viaje de Gastos de Viaje: encabezado del viaje +
-// tabla de todas las líneas + totales. Pensado para imprimirse y grapar las
-// facturas físicas detrás. Se puede generar en cualquier estado — si el
-// viaje todavía no está aprobado, se marca como "reporte preliminar" para
-// que quede claro que los montos pueden seguir cambiando.
-export async function buildGastoPdf({ cabecera, lineas, provById = {}, totales }) {
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ unit: "pt", format: "letter" });
+// Dibuja el reporte de un viaje (encabezado + tabla de líneas + totales) a
+// partir del margen superior de la página actual del doc — factorizado para
+// poder usarse tanto para un solo viaje (buildGastoPdf) como para varios,
+// uno por página (buildGastosGlobalPdf).
+function appendGastoPdfContent(doc, { cabecera, lineas, provById = {}, totales }) {
   const margin = 40;
+  const contentWidth = 612 - margin * 2;
   let y = margin;
 
   doc.setFont("helvetica", "bold");
@@ -137,12 +135,18 @@ export async function buildGastoPdf({ cabecera, lineas, provById = {}, totales }
   y += 14;
   doc.text(`Ruta / ciudad de viaje: ${cabecera.ciudadViaje || "-"}`, margin, y);
   y += 14;
-  doc.text(`Del ${(cabecera.fechaInicio || "-").slice(0, 10)} al ${(cabecera.fechaFin || "-").slice(0, 10)}    Motivo: ${cabecera.motivo || "-"}`, margin, y);
+  doc.text(`Del ${(cabecera.fechaInicio || "-").slice(0, 10)} al ${(cabecera.fechaFin || "-").slice(0, 10)}`, margin, y);
   y += 14;
+  // El motivo puede ser largo — en una sola línea con doc.text() se salía
+  // del margen y quedaba recortado; se envuelve con splitTextToSize.
+  const motivoLines = doc.splitTextToSize(`Motivo: ${cabecera.motivo || "-"}`, contentWidth);
+  doc.text(motivoLines, margin, y);
+  y += motivoLines.length * 12 + 2;
   const nombresProv = (cabecera.proveedoresVisitados || []).map((id) => provById[id]?.nombre).filter(Boolean).join(", ");
   if (nombresProv) {
-    doc.text(`Proveedores visitados: ${nombresProv}`, margin, y);
-    y += 14;
+    const provLines = doc.splitTextToSize(`Proveedores visitados: ${nombresProv}`, contentWidth);
+    doc.text(provLines, margin, y);
+    y += provLines.length * 12 + 2;
   }
   const revisores = [...new Set(lineas.map((l) => l.revisorLinea).filter(Boolean))].join(", ");
   doc.text(`Estado: ${cabecera.estado || "-"}    Aprobado por: ${revisores || "-"}`, margin, y);
@@ -151,7 +155,7 @@ export async function buildGastoPdf({ cabecera, lineas, provById = {}, totales }
   doc.autoTable({
     startY: y,
     margin: { left: margin, right: margin },
-    head: [["Fecha", "Tipo", "Lugar", "Proveedor/Servicio", "N.º factura", "Proveedor visitado", "Km", "Monto"]],
+    head: [["Fecha", "Tipo", "Lugar", "Proveedor/Serv.", "N.º factura", "Prov. visitado", "Km", "Monto", "Observaciones"]],
     body: lineas.map((l) => [
       (l.fecha || "").slice(0, 10),
       l.tipo || "",
@@ -165,18 +169,20 @@ export async function buildGastoPdf({ cabecera, lineas, provById = {}, totales }
         ? `${l.kmInicio ?? ""} - ${l.kmFinal ?? ""} (${Math.max(0, Number(l.kmFinal || 0) - Number(l.kmInicio || 0))} km)`
         : "",
       `$${Number(l.monto || 0).toFixed(2)}`,
+      l.comentario || "",
     ]),
-    styles: { fontSize: 7.5, cellPadding: 4, overflow: "linebreak", valign: "middle" },
-    headStyles: { fillColor: [31, 78, 61], fontSize: 7.5 },
+    styles: { fontSize: 7, cellPadding: 3, overflow: "linebreak", valign: "middle" },
+    headStyles: { fillColor: [31, 78, 61], fontSize: 7 },
     columnStyles: {
-      0: { cellWidth: 52 },
-      1: { cellWidth: 78 },
-      2: { cellWidth: 68 },
-      3: { cellWidth: 85 },
-      4: { cellWidth: 62 },
-      5: { cellWidth: 80 },
-      6: { cellWidth: 55 },
-      7: { cellWidth: 52, halign: "right" },
+      0: { cellWidth: 42 },
+      1: { cellWidth: 62 },
+      2: { cellWidth: 48 },
+      3: { cellWidth: 58 },
+      4: { cellWidth: 46 },
+      5: { cellWidth: 54 },
+      6: { cellWidth: 48 },
+      7: { cellWidth: 40, halign: "right" },
+      8: { cellWidth: 82 },
     },
   });
   y = doc.lastAutoTable.finalY + 18;
@@ -200,6 +206,63 @@ export async function buildGastoPdf({ cabecera, lineas, provById = {}, totales }
   );
   y += 14;
   doc.text("Adjuntar a este documento las facturas físicas originales de cada línea de gasto.", margin, y);
+}
+
+// PDF consolidado de un viaje de Gastos de Viaje: encabezado del viaje +
+// tabla de todas las líneas + totales. Pensado para imprimirse y grapar las
+// facturas físicas detrás. Se puede generar en cualquier estado — si el
+// viaje todavía no está aprobado, se marca como "reporte preliminar" para
+// que quede claro que los montos pueden seguir cambiando.
+export async function buildGastoPdf({ cabecera, lineas, provById = {}, totales }) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: "pt", format: "letter" });
+  appendGastoPdfContent(doc, { cabecera, lineas, provById, totales });
+  return doc.output("blob");
+}
+
+// Reporte global: portada con una tabla resumen de todos los viajes
+// seleccionados (y su gran total), seguida del detalle completo de cada uno
+// en su propia página — para no tener que entrar viaje por viaje a
+// descargar/imprimir cuando se necesita revisar varios de una sola vez.
+export async function buildGastosGlobalPdf({ viajes, provById = {} }) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: "pt", format: "letter" });
+  const margin = 40;
+  let y = margin;
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(15);
+  doc.text("REPORTE GLOBAL DE GASTOS DE VIAJE", margin, y);
+  y += 18;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.text(`Generado: ${new Date().toLocaleString("es-EC")}    Viajes incluidos: ${viajes.length}`, margin, y);
+  y += 18;
+
+  const granTotal = viajes.reduce((s, v) => s + v.totales.total, 0);
+
+  doc.autoTable({
+    startY: y,
+    margin: { left: margin, right: margin },
+    head: [["Fechas", "Viajero", "Ciudad / ruta", "Estado", "Total"]],
+    body: viajes.map((v) => [
+      `${(v.cabecera.fechaInicio || "-").slice(0, 10)} a ${(v.cabecera.fechaFin || "-").slice(0, 10)}`,
+      v.cabecera.viajero || "-",
+      v.cabecera.ciudadViaje || "-",
+      v.cabecera.estado || "-",
+      `$${v.totales.total.toFixed(2)}`,
+    ]),
+    foot: [["", "", "", "TOTAL", `$${granTotal.toFixed(2)}`]],
+    styles: { fontSize: 8.5, cellPadding: 4 },
+    headStyles: { fillColor: [31, 78, 61] },
+    footStyles: { fillColor: [230, 230, 230], textColor: [20, 20, 20], fontStyle: "bold" },
+    columnStyles: { 4: { halign: "right" } },
+  });
+
+  viajes.forEach((v) => {
+    doc.addPage();
+    appendGastoPdfContent(doc, v);
+  });
 
   return doc.output("blob");
 }

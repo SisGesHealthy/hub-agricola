@@ -3,7 +3,7 @@ import * as store from "./store.js";
 import { capturePhoto, renderPhotoRow, SignaturePad, toast, fmtMoney } from "./components.js";
 import { getCurrentUser } from "./auth.js";
 import { CONFIG } from "./config.js";
-import { buildGastoPdf, downloadPdf, sharePdf } from "./pdf.js";
+import { buildGastoPdf, buildGastosGlobalPdf, downloadPdf, sharePdf } from "./pdf.js";
 
 const estadoBadge = { Borrador: "info", Enviado: "warn", Aprobado: "ok", Revisado: "ok", Rechazado: "bad", Pagado: "ok" };
 const rutaEstadoBadge = { Planificada: "info", Realizada: "ok", Reprogramada: "warn", Cancelada: "bad" };
@@ -53,6 +53,51 @@ export async function renderGastosHome(root) {
     ])
   );
   root.appendChild(filterCard);
+
+  // Selección para el reporte global — evita tener que entrar viaje por
+  // viaje solo para descargar/imprimir cada uno por separado.
+  const seleccionados = new Set();
+  const globalBar = el("div", { class: "card", style: "display:none" }, [
+    el("div", { class: "list-row" }, [
+      el("div", { id: "gastos-sel-count" }, ""),
+      el(
+        "button",
+        {
+          class: "btn small",
+          onclick: async (ev) => {
+            const btn = ev.currentTarget;
+            btn.disabled = true;
+            btn.textContent = "Generando…";
+            try {
+              const [proveedores, viajes] = await Promise.all([
+                store.listProveedores(),
+                Promise.all(
+                  [...seleccionados].map(async (id) => {
+                    const { cabecera, lineas } = await store.getGasto(id);
+                    return { cabecera, lineas, totales: store.computeGastoTotales({ lineas }) };
+                  })
+                ),
+              ]);
+              const provById = Object.fromEntries(proveedores.map((p) => [p.id, p]));
+              viajes.sort((a, b) => (a.cabecera.fechaInicio || "").localeCompare(b.cabecera.fechaInicio || ""));
+              const blob = await buildGastosGlobalPdf({ viajes, provById });
+              downloadPdf(blob, `Gastos_Reporte_Global_${new Date().toISOString().slice(0, 10)}.pdf`);
+            } finally {
+              btn.disabled = false;
+              btn.textContent = "Generar reporte global";
+            }
+          },
+        },
+        "Generar reporte global"
+      ),
+    ]),
+  ]);
+  root.appendChild(globalBar);
+
+  function refreshGlobalBar() {
+    globalBar.style.display = seleccionados.size > 0 ? "block" : "none";
+    globalBar.querySelector("#gastos-sel-count").textContent = `${seleccionados.size} viaje(s) seleccionado(s)`;
+  }
 
   const resultsSection = el("div");
   root.appendChild(resultsSection);
@@ -104,11 +149,25 @@ export async function renderGastosHome(root) {
 
         const card = el("div", { class: "card" });
         gastosSemana.forEach((g) => {
+          const cb = el("input", {
+            type: "checkbox",
+            checked: seleccionados.has(g.id) ? "checked" : undefined,
+            style: "width:auto;margin-right:10px",
+            onclick: (ev) => {
+              ev.stopPropagation();
+              if (ev.target.checked) seleccionados.add(g.id);
+              else seleccionados.delete(g.id);
+              refreshGlobalBar();
+            },
+          });
           card.appendChild(
             el("div", { class: "list-row", onclick: () => renderGastoDetalle(root, g.id) }, [
-              el("div", {}, [
-                el("div", { class: "title" }, g.ciudadViaje || g.motivo || "Viaje"),
-                el("div", { class: "sub" }, `${fmtFecha(g.fechaInicio)} – ${fmtFecha(g.fechaFin)}`),
+              el("div", { style: "display:flex;align-items:center" }, [
+                cb,
+                el("div", {}, [
+                  el("div", { class: "title" }, g.ciudadViaje || g.motivo || "Viaje"),
+                  el("div", { class: "sub" }, `${fmtFecha(g.fechaInicio)} – ${fmtFecha(g.fechaFin)}`),
+                ]),
               ]),
               el("div", { class: "rt" }, [
                 el("span", { class: `badge ${estadoBadge[g.estado] || "info"}` }, g.estado),
