@@ -5,6 +5,7 @@
 import { el, clear } from "./dom.js";
 import * as store from "./store.js";
 import { toast, fmtPct } from "./components.js";
+import { isAdmin } from "./auth.js";
 import { openMapPicker } from "./mapPicker.js";
 import { PROVINCIAS_ECUADOR } from "./ecuador.js";
 
@@ -182,7 +183,7 @@ async function renderProveedorForm(root, existing = null) {
     )
   );
 
-  if (existing) {
+  if (existing && isAdmin()) {
     root.appendChild(
       el(
         "button",

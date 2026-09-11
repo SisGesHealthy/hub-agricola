@@ -2,6 +2,7 @@ import { el, clear } from "./dom.js";
 import * as store from "./store.js";
 import { capturePhoto, renderPhotoRow, renderGpsBox, SignaturePad, toast, fmtPct } from "./components.js";
 import { buildChecklistPdf, downloadPdf } from "./pdf.js";
+import { isAdmin } from "./auth.js";
 import { openMapPicker } from "./mapPicker.js";
 import { PROVINCIAS_ECUADOR } from "./ecuador.js";
 
@@ -30,7 +31,7 @@ export async function renderChecklistHome(root) {
       badge,
       c.ponderacionTotal != null ? el("div", { class: "sub" }, fmtPct(c.ponderacionTotal)) : null,
     ]);
-    if (c.estado === "Borrador") {
+    if (c.estado === "Borrador" && isAdmin()) {
       const delBtn = el(
         "button",
         {
@@ -82,24 +83,26 @@ async function renderNewChecklistPicker(root) {
   const proveedores = await store.listProveedores();
   const card = el("div", { class: "card" });
   proveedores.forEach((p) => {
-    const rt = el("div", { class: "rt" }, [
-      p.ultimaPonderacion != null ? el("div", { class: "badge info" }, fmtPct(p.ultimaPonderacion)) : null,
-      el(
-        "button",
-        {
-          class: "btn ghost small",
-          style: "margin-top:6px",
-          onclick: async (ev) => {
-            ev.stopPropagation();
-            if (!confirm(`¿Borrar el proveedor "${p.nombre}"? Las inspecciones, seguimientos, rutas o gastos ya registrados con él quedarán como "Proveedor eliminado". Esto no se puede deshacer.`)) return;
-            await store.deleteProveedor(p.id);
-            toast("Proveedor eliminado", "success");
-            renderNewChecklistPicker(root);
+    const rt = el("div", { class: "rt" }, [p.ultimaPonderacion != null ? el("div", { class: "badge info" }, fmtPct(p.ultimaPonderacion)) : null]);
+    if (isAdmin()) {
+      rt.appendChild(
+        el(
+          "button",
+          {
+            class: "btn ghost small",
+            style: "margin-top:6px",
+            onclick: async (ev) => {
+              ev.stopPropagation();
+              if (!confirm(`¿Borrar el proveedor "${p.nombre}"? Las inspecciones, seguimientos, rutas o gastos ya registrados con él quedarán como "Proveedor eliminado". Esto no se puede deshacer.`)) return;
+              await store.deleteProveedor(p.id);
+              toast("Proveedor eliminado", "success");
+              renderNewChecklistPicker(root);
+            },
           },
-        },
-        "🗑 Borrar"
-      ),
-    ]);
+          "🗑 Borrar"
+        )
+      );
+    }
     card.appendChild(
       el(
         "div",

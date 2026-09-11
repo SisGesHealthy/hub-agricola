@@ -43,11 +43,17 @@ export const CONFIG = {
   // este monto (ver store.computeSemanaTotales).
   viaticoSemanal: 200,
 
-  // Quién aprueba cada línea de gasto según su tipo: kilometraje (movilización
-  // propia) lo aprueba Talento Humano; cualquier otro tipo (hospedaje,
-  // alimentación, etc.) lo aprueba Compras. Ver store.computeAprobadorLinea().
+  // Quién aprueba cada viaje de Gastos según lo que contenga: kilometraje
+  // (movilización propia) lo aprueba Talento Humano; cualquier otro tipo
+  // (hospedaje, alimentación, etc.) lo aprueba Compras. Un viaje mixto
+  // necesita las dos. Ver store.computeAprobacionesRequeridas().
   approvers: {
     kilometraje: "talentohumano@healthyfood.com.ec",
     general: "compras@healthyfood.com.ec",
   },
+
+  // Única cuenta con permisos de administrador (ver auth.isAdmin()): puede
+  // borrar cualquier proveedor/Check List/viaje de Gastos sin restricción de
+  // estado, y aprobar cualquier viaje aunque no sea la cuenta asignada.
+  adminEmail: "sistemasdegestion@healthyfood.com.ec",
 };

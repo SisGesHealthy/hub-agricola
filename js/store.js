@@ -532,6 +532,26 @@ export async function deleteGastoLinea(linea) {
   if (linea._itemId) await graph.graphDeleteItemById("gastosDetalle", linea._itemId);
 }
 
+// Borra un viaje completo (cabecera + todas sus líneas) sin importar su
+// estado — a diferencia de deleteGastoLinea, que solo aplica a líneas
+// sueltas de un viaje en Borrador. Pensado solo para la cuenta administradora
+// (ver auth.isAdmin(), gateado en la UI en gastos.js), para poder limpiar
+// duplicados o pruebas aunque el viaje ya esté Enviado/Aprobado/Rechazado.
+export async function deleteGasto(gastoId) {
+  const { cabecera, lineas } = await getGasto(gastoId);
+  if (CONFIG.useMock) {
+    if (cabecera) await idb.delete("gastosCab", gastoId);
+    for (const l of lineas) await idb.delete("gastosDet", l.id);
+    return;
+  }
+  const CHUNK = 20;
+  for (let i = 0; i < lineas.length; i += CHUNK) {
+    const chunk = lineas.slice(i, i + CHUNK);
+    await Promise.all(chunk.filter((l) => l._itemId).map((l) => graph.graphDeleteItemById("gastosDetalle", l._itemId)));
+  }
+  if (cabecera?._itemId) await graph.graphDeleteItemById("gastosCabecera", cabecera._itemId);
+}
+
 export function computeGastoTotales({ lineas }) {
   const total = lineas.reduce((s, l) => s + Number(l.monto || 0), 0);
   const totalKm = lineas

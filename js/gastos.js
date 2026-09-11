@@ -1,7 +1,7 @@
 import { el, clear } from "./dom.js";
 import * as store from "./store.js";
 import { capturePhoto, renderPhotoRow, SignaturePad, toast, fmtMoney } from "./components.js";
-import { getCurrentUser } from "./auth.js";
+import { getCurrentUser, isAdmin } from "./auth.js";
 import { CONFIG } from "./config.js";
 import { buildGastoPdf, buildGastosGlobalPdf, downloadPdf, sharePdf } from "./pdf.js";
 
@@ -482,7 +482,7 @@ async function renderGastoDetalle(root, gastoId) {
     function renderAprobacionCard(rol, label, emailAprobador, estadoActual) {
       // En modo demo no hay sesión real de Microsoft, así que no se puede
       // comparar cuenta contra cuenta — se deja pasar para poder probar.
-      const puedeRevisar = estadoActual === "Pendiente" && (CONFIG.useMock || currentEmail === emailAprobador.toLowerCase());
+      const puedeRevisar = estadoActual === "Pendiente" && (CONFIG.useMock || currentEmail === emailAprobador.toLowerCase() || isAdmin());
       const card = el("div", { class: "card" }, [
         el("div", { class: "list-row" }, [
           el("div", {}, [el("div", { class: "title" }, label), el("div", { class: "sub" }, `Asignado a: ${emailAprobador}`)]),
@@ -547,6 +547,25 @@ async function renderGastoDetalle(root, gastoId) {
           },
         },
         "Editar y reenviar"
+      )
+    );
+  }
+
+  if (isAdmin()) {
+    root.appendChild(
+      el(
+        "button",
+        {
+          class: "btn danger",
+          style: "margin-top:16px",
+          onclick: async () => {
+            if (!confirm(`¿Eliminar por completo el viaje "${cabecera.ciudadViaje}" (estado actual: ${cabecera.estado})? Esto borra también todas sus líneas y no se puede deshacer.`)) return;
+            await store.deleteGasto(cabecera.id);
+            toast("Viaje eliminado", "success");
+            renderGastosHome(root);
+          },
+        },
+        "🗑 Eliminar viaje (administrador)"
       )
     );
   }

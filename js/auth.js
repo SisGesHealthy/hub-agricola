@@ -51,6 +51,16 @@ export function getCurrentUser() {
   return account;
 }
 
+// Cuenta única con permisos de administrador: puede borrar cualquier
+// registro (proveedores, Check List, viajes de Gastos aunque ya estén
+// Enviados) sin las restricciones normales, y aprobar cualquier viaje en
+// Gastos aunque no sea la cuenta asignada (útil para probar el flujo sin
+// necesitar acceso a talentohumano@/compras@). Ver CONFIG.adminEmail.
+export function isAdmin() {
+  if (CONFIG.useMock) return true;
+  return (account?.username || "").toLowerCase() === (CONFIG.adminEmail || "").toLowerCase();
+}
+
 export async function getAccessToken() {
   const app = getMsal();
   if (!account) throw new Error("No hay sesión iniciada.");
