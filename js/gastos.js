@@ -40,7 +40,7 @@ function fmtFecha(iso) {
 export async function renderGastosHome(root) {
   clear(root);
   root.appendChild(el("div", { class: "top-actions" }, [el("h1", {}, "Gastos de Viaje")]));
-  root.appendChild(el("button", { class: "btn", onclick: () => renderGastoNuevo(root) }, "+ Nuevo viaje"));
+  root.appendChild(el("button", { class: "btn", onclick: () => renderGastoForm(root) }, "+ Nuevo viaje"));
 
   const currentUser = getCurrentUser();
   const esTalentoHumano = CONFIG.useMock || (currentUser?.username || "").toLowerCase() === CONFIG.approvers.kilometraje.toLowerCase();
@@ -244,19 +244,24 @@ async function renderConfigTarifa(root) {
   );
 }
 
-async function renderGastoNuevo(root) {
+// Sirve tanto para crear un viaje nuevo como para editar uno que sigue en
+// Borrador (existing != null) — una vez Enviado, ya no se puede tocar esta
+// pantalla (ver el botón "Editar datos del viaje" en renderGastoDetalle, que
+// solo aparece mientras readonly === false).
+async function renderGastoForm(root, existing = null) {
   clear(root);
-  root.appendChild(el("div", { class: "top-actions" }, [el("button", { class: "back-btn", onclick: () => renderGastosHome(root) }, "‹ Volver")]));
-  root.appendChild(el("h1", {}, "Nuevo viaje"));
+  const volver = existing ? () => renderGastoDetalle(root, existing.id) : () => renderGastosHome(root);
+  root.appendChild(el("div", { class: "top-actions" }, [el("button", { class: "back-btn", onclick: volver }, "‹ Volver")]));
+  root.appendChild(el("h1", {}, existing ? "Editar viaje" : "Nuevo viaje"));
 
   const card = el("div", { class: "card" });
   const currentUser = getCurrentUser();
-  const viajero = el("input", { type: "text", placeholder: "Nombre del viajero", value: currentUser?.name || currentUser?.username || "" });
-  const ciudadBase = el("input", { type: "text", placeholder: "Ej. Machachi", value: "Machachi" });
-  const ciudadViaje = el("input", { type: "text", placeholder: "Ej. Los Ángeles - Categosín - Km 18" });
-  const fechaInicio = el("input", { type: "date", value: new Date().toISOString().slice(0, 10) });
-  const fechaFin = el("input", { type: "date", value: new Date().toISOString().slice(0, 10) });
-  const motivo = el("input", { type: "text", placeholder: "Ej. Visita proveedores de mora" });
+  const viajero = el("input", { type: "text", placeholder: "Nombre del viajero", value: existing?.viajero ?? (currentUser?.name || currentUser?.username || "") });
+  const ciudadBase = el("input", { type: "text", placeholder: "Ej. Machachi", value: existing?.ciudadBase ?? "Machachi" });
+  const ciudadViaje = el("input", { type: "text", placeholder: "Ej. Los Ángeles - Categosín - Km 18", value: existing?.ciudadViaje || "" });
+  const fechaInicio = el("input", { type: "date", value: (existing?.fechaInicio || new Date().toISOString()).slice(0, 10) });
+  const fechaFin = el("input", { type: "date", value: (existing?.fechaFin || new Date().toISOString()).slice(0, 10) });
+  const motivo = el("input", { type: "text", placeholder: "Ej. Visita proveedores de mora", value: existing?.motivo || "" });
 
   card.append(
     el("label", { class: "field-label" }, "Viajero"),
@@ -298,7 +303,12 @@ async function renderGastoNuevo(root) {
       return;
     }
     enRango.forEach((r) => {
-      const cb = el("input", { type: "checkbox", value: r.id, style: "width:auto;margin-right:8px" });
+      const cb = el("input", {
+        type: "checkbox",
+        value: r.id,
+        checked: existing?.rutasIds?.includes(r.id) ? "checked" : undefined,
+        style: "width:auto;margin-right:8px",
+      });
       rutaChecks.push({ cb, ruta: r });
       rutaListBox.appendChild(
         el("label", { style: "display:flex;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:14px" }, [
@@ -318,7 +328,12 @@ async function renderGastoNuevo(root) {
   provCard.appendChild(el("label", { class: "field-label", style: "margin-top:0" }, "Otros proveedores (sin ruta registrada)"));
   const checks = [];
   proveedores.forEach((p) => {
-    const cb = el("input", { type: "checkbox", value: p.id, style: "width:auto;margin-right:8px" });
+    const cb = el("input", {
+      type: "checkbox",
+      value: p.id,
+      checked: existing?.proveedoresVisitados?.includes(p.id) ? "checked" : undefined,
+      style: "width:auto;margin-right:8px",
+    });
     checks.push(cb);
     provCard.appendChild(
       el("label", { style: "display:flex;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:14px" }, [
@@ -342,7 +357,7 @@ async function renderGastoNuevo(root) {
           const proveedoresDeRutas = rutasSeleccionadas.map((r) => r.proveedorId).filter(Boolean);
           const proveedoresManual = checks.filter((c) => c.checked).map((c) => c.value);
           const proveedoresVisitados = [...new Set([...proveedoresDeRutas, ...proveedoresManual])];
-          const g = await store.createGasto({
+          const campos = {
             viajero: viajero.value.trim(),
             ciudadBase: ciudadBase.value.trim(),
             ciudadViaje: ciudadViaje.value.trim(),
@@ -351,11 +366,18 @@ async function renderGastoNuevo(root) {
             motivo: motivo.value.trim(),
             rutasIds,
             proveedoresVisitados,
-          });
-          renderGastoDetalle(root, g.id);
+          };
+          if (existing) {
+            await store.updateGasto({ ...existing, ...campos });
+            toast("Viaje actualizado", "success");
+            renderGastoDetalle(root, existing.id);
+          } else {
+            const g = await store.createGasto(campos);
+            renderGastoDetalle(root, g.id);
+          }
         },
       },
-      "Crear viaje y agregar gastos"
+      existing ? "Guardar cambios" : "Crear viaje y agregar gastos"
     )
   );
 }
@@ -391,6 +413,13 @@ async function renderGastoDetalle(root, gastoId) {
     summary.appendChild(el("div", { class: "list-row" }, [el("div", {}, "Proveedores visitados"), el("div", { style: "text-align:right;max-width:60%" }, nombres || "-")]));
   }
   root.appendChild(summary);
+
+  if (!readonly) {
+    root.appendChild(
+      el("button", { class: "btn secondary", onclick: () => renderGastoForm(root, cabecera) }, "✏️ Editar datos del viaje")
+    );
+    root.appendChild(el("div", { style: "height:10px" }));
+  }
 
   if (cabecera.rutasIds?.length) {
     const todasRutas = await store.listRutas();
