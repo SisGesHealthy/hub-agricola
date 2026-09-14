@@ -23,6 +23,11 @@ const TIPOS_GASTO = ["Movilización propia (Km)", "Hospedaje", "Alimentación", 
 // en cualquier estado, marcado como preliminar si aún no está aprobado).
 const ESTADOS_APROBADOS_HINT = ["Aprobado", "Revisado", "Pagado"];
 
+// Recuerda el filtro de fechas mientras la app sigue abierta (se pierde al
+// recargar la página) — así entrar a ver un viaje y volver no obliga a
+// volver a filtrar.
+const filtroFechas = { desde: "", hasta: "" };
+
 // "2026-08-14" -> "14/08/2026" — las fechas en bruto (ISO, a veces con hora
 // completa porque SharePoint las devuelve así) se prestaban a confusión.
 function fmtFecha(iso) {
@@ -53,8 +58,8 @@ export async function renderGastosHome(root) {
   }
 
   const filterCard = el("div", { class: "card" });
-  const desde = el("input", { type: "date" });
-  const hasta = el("input", { type: "date" });
+  const desde = el("input", { type: "date", value: filtroFechas.desde });
+  const hasta = el("input", { type: "date", value: filtroFechas.hasta });
   filterCard.append(
     el("label", { class: "field-label", style: "margin-top:0" }, "Filtrar por fecha de viaje"),
     el("div", { class: "grid-2" }, [
@@ -190,8 +195,14 @@ export async function renderGastosHome(root) {
       });
   }
 
-  desde.addEventListener("change", renderResults);
-  hasta.addEventListener("change", renderResults);
+  desde.addEventListener("change", () => {
+    filtroFechas.desde = desde.value;
+    renderResults();
+  });
+  hasta.addEventListener("change", () => {
+    filtroFechas.hasta = hasta.value;
+    renderResults();
+  });
   renderResults();
 }
 
