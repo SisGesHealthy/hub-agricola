@@ -129,11 +129,15 @@ textarea { min-height: 70px; resize: vertical; }
 
 .badge { display: inline-block; padding: 3px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 600; }
 .badge.ok { background: #dff3e3; color: #226b3e; }
+/* Gastos de Viaje "Aprobado" con las 2 aprobaciones (Compras + Talento
+   Humano) — verde sólido más oscuro para distinguirlo de una sola aprobación. */
+.badge.ok-full { background: #226b3e; color: #fff; }
 .badge.warn { background: #fbe7c8; color: #8a5a10; }
 .badge.bad { background: #fbdbd6; color: #8a2418; }
 .badge.info { background: var(--green-100); color: var(--green-800); }
 @media (prefers-color-scheme: dark) {
   .badge.ok { background: #16351f; color: #7fe0a0; }
+  .badge.ok-full { background: #2f8a52; color: #f2fff6; }
   .badge.warn { background: #3a2c10; color: #f0b955; }
   .badge.bad { background: #3a1613; color: #f19188; }
 }

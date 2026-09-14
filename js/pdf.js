@@ -1,6 +1,6 @@
 // Generación del PDF de la inspección (Check List), usando jsPDF + autotable
 // (vendored en vendor/, sin dependencia de CDN). Expuestos como window.jspdf.
-import { getPhotoBlobForExport } from "./store.js";
+import { getPhotoBlobForExport, isoWeek, isoWeekYear, isoWeekRange, computeSemanaTotales } from "./store.js";
 import { fmtPct } from "./components.js";
 
 function blobToDataUrl(blob) {
@@ -259,6 +259,55 @@ export async function buildGastosGlobalPdf({ viajes, provById = {} }) {
     columnStyles: { 4: { halign: "right" } },
   });
   y = doc.lastAutoTable.finalY + 22;
+
+  // El viático es fijo por semana ($200, ver CONFIG.viaticoSemanal), no por
+  // viaje — sin este cuadro, "Total" por viaje se prestaba a que Contabilidad
+  // calculara mal el saldo a pagar. Se agrupan los viajes seleccionados por
+  // semana ISO, igual que en la pantalla de Gastos de Viaje.
+  const semanas = {};
+  viajes.forEach((v) => {
+    const fecha = (v.cabecera.fechaInicio || "").slice(0, 10);
+    if (!fecha) return;
+    const year = isoWeekYear(fecha);
+    const week = isoWeek(fecha);
+    const key = `${year}-${week}`;
+    semanas[key] = semanas[key] || { year, week, total: 0 };
+    semanas[key].total += v.totales.total;
+  });
+  const semanasArr = Object.values(semanas).sort((a, b) => a.year - b.year || a.week - b.week);
+
+  if (semanasArr.length > 0) {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.text("Liquidación semanal (viático fijo por semana)", margin, y);
+    y += 10;
+
+    const anticipoTotal = semanasArr.reduce((s, sem) => s + computeSemanaTotales(sem.total).anticipo, 0);
+    const saldoTotal = semanasArr.reduce((s, sem) => s + computeSemanaTotales(sem.total).valorADevolver, 0);
+
+    doc.autoTable({
+      startY: y,
+      margin: { left: margin, right: margin },
+      head: [["Semana", "Fechas", "Total gastos", "Viático", "Saldo"]],
+      body: semanasArr.map((sem) => {
+        const { inicio, fin } = isoWeekRange(sem.year, sem.week);
+        const t = computeSemanaTotales(sem.total);
+        return [
+          `Semana ${sem.week}`,
+          `${inicio} a ${fin}`,
+          `$${t.total.toFixed(2)}`,
+          `$${t.anticipo.toFixed(2)}`,
+          t.valorADevolver >= 0 ? `Empresa reembolsa $${t.valorADevolver.toFixed(2)}` : `Técnico devuelve $${Math.abs(t.valorADevolver).toFixed(2)}`,
+        ];
+      }),
+      foot: [["", "TOTAL", `$${semanasArr.reduce((s, sem) => s + sem.total, 0).toFixed(2)}`, `$${anticipoTotal.toFixed(2)}`, saldoTotal >= 0 ? `Reembolsa $${saldoTotal.toFixed(2)}` : `Devuelve $${Math.abs(saldoTotal).toFixed(2)}`]],
+      styles: { fontSize: 8.5, cellPadding: 4 },
+      headStyles: { fillColor: [31, 78, 61] },
+      footStyles: { fillColor: [230, 230, 230], textColor: [20, 20, 20], fontStyle: "bold" },
+      columnStyles: { 2: { halign: "right" }, 3: { halign: "right" } },
+    });
+    y = doc.lastAutoTable.finalY + 22;
+  }
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(12);

@@ -6,6 +6,16 @@ import { CONFIG } from "./config.js";
 import { buildGastoPdf, buildGastosGlobalPdf, downloadPdf, sharePdf } from "./pdf.js";
 
 const estadoBadge = { Borrador: "info", Enviado: "warn", Aprobado: "ok", Revisado: "ok", Rechazado: "bad", Pagado: "ok" };
+// Un viaje "Aprobado" pudo necesitar 1 o 2 aprobaciones según lo que tuviera
+// (ver store.computeAprobacionesRequeridas) — se distingue con dos tonos de
+// verde para que se note de un vistazo cuántas áreas ya lo revisaron.
+function estadoBadgeClass(cabecera) {
+  const base = estadoBadge[cabecera.estado] || "info";
+  if (base !== "ok") return base;
+  const comprasOk = cabecera.aprobComprasEstado === "Aprobado";
+  const thOk = cabecera.aprobThEstado === "Aprobado";
+  return comprasOk && thOk ? "ok-full" : "ok";
+}
 const rutaEstadoBadge = { Planificada: "info", Realizada: "ok", Reprogramada: "warn", Cancelada: "bad" };
 const TIPOS_GASTO = ["Movilización propia (Km)", "Hospedaje", "Alimentación", "Atenciones", "Peaje", "Varios"];
 // Igual que ESTADOS_APROBADOS en pdf.js — solo para elegir el texto del
@@ -170,7 +180,7 @@ export async function renderGastosHome(root) {
                 ]),
               ]),
               el("div", { class: "rt" }, [
-                el("span", { class: `badge ${estadoBadge[g.estado] || "info"}` }, g.estado),
+                el("span", { class: `badge ${estadoBadgeClass(g)}` }, g.estado),
                 el("div", { class: "sub" }, fmtMoney(g.totalLineas)),
               ]),
             ])
@@ -360,7 +370,7 @@ async function renderGastoDetalle(root, gastoId) {
       el("div", {}, cabecera.fechaInicio ? `Semana ${store.isoWeek(cabecera.fechaInicio.slice(0, 10))}` : "-"),
     ]),
     el("div", { class: "list-row" }, [el("div", {}, "Total gastos"), el("div", { class: "amt" }, fmtMoney(totales.total))]),
-    el("div", { class: "list-row" }, [el("div", {}, "Estado"), el("span", { class: `badge ${estadoBadge[cabecera.estado] || "info"}` }, cabecera.estado)]),
+    el("div", { class: "list-row" }, [el("div", {}, "Estado"), el("span", { class: `badge ${estadoBadgeClass(cabecera)}` }, cabecera.estado)]),
   ]);
   if (totales.totalKm > 0) {
     summary.appendChild(el("div", { class: "list-row" }, [el("div", {}, "Km recorridos"), el("div", {}, `${totales.totalKm} km`)]));
