@@ -597,7 +597,7 @@ function renderLineaCard(l, provById = {}, { onClick } = {}) {
   const isKm = l.tipo === "Movilización propia (Km)";
   const hintParts = isKm
     ? [`Km ${l.kmInicio ?? "-"} → ${l.kmFinal ?? "-"} (${Math.max(0, Number(l.kmFinal || 0) - Number(l.kmInicio || 0))} km)`]
-    : [l.lugar, l.proveedorServicio, provNombre ? `Visita: ${provNombre}` : null];
+    : [l.lugar, l.proveedorServicio, provNombre ? `Visita: ${provNombre}` : null, l.documento ? `Factura: ${l.documento}` : null];
   const wrap = el("div", { class: "expense-line", onclick: onClick || undefined, style: onClick ? "cursor:pointer" : "" }, [
     el("div", { class: "head" }, [el("div", {}, `${fmtFecha(l.fecha)} · ${l.tipo}`), el("div", { class: "amt" }, `$${Number(l.monto || 0).toFixed(2)}`)]),
     el("div", { class: "hint" }, hintParts.filter(Boolean).join(" · ")),
