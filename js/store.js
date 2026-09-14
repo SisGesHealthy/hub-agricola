@@ -563,9 +563,12 @@ export function computeGastoTotales({ lineas }) {
 // El viático es fijo por semana (no por viaje individual) — cada técnico
 // recibe un anticipo semanal y se liquida contra el total de todos sus
 // viajes de esa semana (ver store.listGastosConTotales y CONFIG.viaticoSemanal).
+// valorADevolver > 0: el técnico gastó más de lo que se le dio de anticipo,
+// así que la empresa debe reembolsarle la diferencia. valorADevolver < 0: le
+// sobró anticipo, así que el técnico devuelve el sobrante a la empresa.
 export function computeSemanaTotales(totalGastosSemana) {
   const anticipo = CONFIG.viaticoSemanal;
-  return { anticipo, total: totalGastosSemana, valorADevolver: anticipo - totalGastosSemana };
+  return { anticipo, total: totalGastosSemana, valorADevolver: totalGastosSemana - anticipo };
 }
 
 // Trae todos los viajes junto con el total ya gastado en cada uno (suma de
